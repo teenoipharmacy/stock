@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, "Sarabun", sans-serif;
+    margin: 0; padding: 0; background: #f4f5f7; color: #1a1a1a;
+  }
+  .header {
+    background: #1d9e75; color: #fff; padding: 16px;
+    text-align: center; position: sticky; top: 0; z-index: 10;
+  }
+  .header h1 { margin: 0; font-size: 20px; font-weight: 600; }
+  .header .sub { font-size: 12px; opacity: 0.85; margin-top: 4px; }
+  .wrap { padding: 16px; max-width: 600px; margin: 0 auto; }
+
+  .scan-box {
+    background: #fff; border-radius: 14px; padding: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 16px;
+  }
+  .scan-box label { font-size: 13px; color: #666; display: block; margin-bottom: 8px; }
+  .input-row { display: flex; gap: 8px; }
+  #barcode {
+    flex: 1; font-size: 18px; padding: 12px; border: 2px solid #ddd;
+    border-radius: 10px; outline: none;
+  }
+  #barcode:focus { border-color: #1d9e75; }
+  .btn {
+    background: #1d9e75; color: #fff; border: none; border-radius: 10px;
+    padding: 0 18px; font-size: 16px; font-weight: 600; cursor: pointer;
+  }
+  .btn:active { background: #157a5a; }
+  .btn-cam {
+    background: #fff; color: #1d9e75; border: 2px solid #1d9e75;
+    width: 100%; padding: 12px; margin-top: 10px; border-radius: 10px;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+
+  #reader { margin-top: 12px; border-radius: 10px; overflow: hidden; }
+
+  .result { display: none; }
+  .card {
+    background: #fff; border-radius: 14px; padding: 18px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 14px;
+  }
+  .pname { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+  .pcode { font-size: 12px; color: #888; margin-bottom: 14px; }
+  .total {
+    display: inline-block; background: #e1f5ee; color: #0f6e56;
+    font-size: 15px; font-weight: 600; padding: 6px 14px; border-radius: 20px;
+  }
+
+  .lot-title { font-size: 13px; color: #666; margin: 16px 0 8px; }
+  .lot {
+    border: 1px solid #eee; border-radius: 10px; padding: 12px;
+    margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .lot-info { flex: 1; }
+  .lot-num { font-size: 15px; font-weight: 600; }
+  .lot-dates { font-size: 12px; color: #777; margin-top: 4px; }
+  .lot-qty { font-size: 15px; font-weight: 700; color: #1d9e75; text-align: right; min-width: 90px; white-space: nowrap; }
+  .exp-warn { color: #d85a30 !important; font-weight: 600; }
+  .exp-soon { color: #ba7517 !important; font-weight: 600; }
+
+  .badge {
+    display: inline-block; font-size: 11px; padding: 2px 8px;
+    border-radius: 12px; margin-left: 6px;
+  }
+  .badge-red { background: #faece7; color: #993c1d; }
+  .badge-amber { background: #faeeda; color: #854f0b; }
+
+  .notfound {
+    display: none; background: #fcebeb; color: #a32d2d;
+    padding: 16px; border-radius: 12px; text-align: center; font-weight: 600;
+  }
+  .loading { text-align: center; color: #888; padding: 20px; display: none; }
+  .foot { text-align: center; font-size: 11px; color: #aaa; margin-top: 20px; }
+
+  .btn-audit {
+    width: 100%; margin-top: 16px; padding: 12px; border-radius: 10px;
+    background: #fff; color: #1d9e75; border: 2px solid #1d9e75;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  .btn-audit:active { background: #f0faf6; }
+  .audit-form { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px dashed #ddd; }
+  .af-title { font-size: 14px; font-weight: 600; color: #0f6e56; margin-bottom: 12px; }
+  .af-label { display: block; font-size: 12px; color: #666; margin: 10px 0 4px; }
+  .af-input {
+    width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;
+    font-size: 15px; outline: none;
+  }
+  .af-input:focus { border-color: #1d9e75; }
+  .af-row { display: flex; gap: 8px; margin-top: 14px; }
+  .btn-save {
+    flex: 1; padding: 12px; border-radius: 8px; border: none;
+    background: #1d9e75; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  .btn-save:active { background: #157a5a; }
+  .btn-cancel {
+    flex: 1; padding: 12px; border-radius: 8px; border: 2px solid #ddd;
+    background: #fff; color: #888; font-size: 15px; cursor: pointer;
+  }
+  .af-ok { display: none; text-align: center; color: #1d9e75; font-weight: 600; margin-top: 12px; }
+  .header .sub { cursor: pointer; }
+  .btn-refresh {
+    width: 100%; margin-top: 10px; padding: 10px; border-radius: 10px;
+    background: #eef1f4; color: #555; border: none;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .btn-refresh:active { background: #e0e4e9; }
+
+  .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .tab {
+    flex: 1; padding: 12px; border-radius: 10px; border: none; cursor: pointer;
+    background: #e6e9ee; color: #667; font-size: 14px; font-weight: 600;
+  }
+  .tab-active { background: #1d9e75; color: #fff; }
+
+  .sum-head { margin-bottom: 12px; }
+  .sum-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+  .sum-tab {
+    flex: 1; padding: 8px; border-radius: 8px; border: 1px solid #ddd; cursor: pointer;
+    background: #fff; color: #777; font-size: 13px; font-weight: 600;
+  }
+  .sum-tab-active { background: #0f6e56; color: #fff; border-color: #0f6e56; }
+  .sum-empty { text-align: center; color: #999; padding: 40px 0; }
+
+  .sum-card {
+    background: #fff; border-radius: 14px; padding: 14px; margin-bottom: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .sum-card.fixed { opacity: 0.55; }
+  .sum-name { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+  .sum-bc-img { width: 100%; max-width: 240px; display: block; margin: 4px 0; }
+  .sum-bc-num { font-size: 12px; color: #666; letter-spacing: 1px; margin-bottom: 8px; }
+  .sum-grid { font-size: 13px; line-height: 1.8; }
+  .sum-grid b { color: #333; }
+  .sum-diff-pos { color: #1d9e75; font-weight: 700; }
+  .sum-diff-neg { color: #d85a30; font-weight: 700; }
+  .sum-time { font-size: 11px; color: #aaa; margin-top: 6px; }
+  .btn-fixed {
+    width: 100%; margin-top: 10px; padding: 10px; border-radius: 8px; border: 2px solid #1d9e75;
+    background: #fff; color: #1d9e75; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .btn-fixed:active { background: #f0faf6; }
+  .badge-fixed {
+    display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 12px;
+    background: #e1f5ee; color: #0f6e56; margin-bottom: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>เช็คสต็อก</h1>
+  <div class="sub" id="lastUpdate" onclick="refreshStatus(true)">กำลังโหลด...</div>
+</div>
+
+<div class="wrap">
+  <div class="tabs">
+    <button class="tab tab-active" id="tabSearch" onclick="showPage('search')">ค้นหา / ตรวจนับ</button>
+    <button class="tab" id="tabSummary" onclick="showPage('summary')">สรุปที่ตรวจนับ</button>
+  </div>
+
+  <div id="pageSearch">
+  <div class="scan-box">
+    <label>สแกนหรือพิมพ์บาร์โค้ด</label>
+    <div class="input-row">
+      <input type="text" id="barcode" placeholder="บาร์โค้ด หรือ รหัส P-xxxx"
+             autocomplete="off" enterkeyhint="search">
+      <button class="btn" onclick="search()">ค้นหา</button>
+    </div>
+    <button class="btn-cam" onclick="toggleCamera()">
+      <span id="camLabel">เปิดกล้องสแกน</span>
+    </button>
+    <button class="btn-refresh" onclick="refreshStatus(true)">
+      โหลดข้อมูลใหม่
+    </button>
+    <div id="browserTip" style="display:none; margin-top:10px; background:#e7f0fb; border-radius:10px; padding:14px; font-size:13px; line-height:1.7; color:#1a4971;">
+      <b>กล้องสแกนใช้ได้เฉพาะใน Safari</b><br>
+      คุณกำลังเปิดด้วย Chrome ซึ่ง iPhone ไม่อนุญาตให้ใช้กล้องในหน้าเว็บ<br>
+      <b>วิธีเปิดใน Safari:</b> แตะปุ่มด้านล่างเพื่อก๊อปลิงก์ แล้ววางใน Safari<br>
+      <button class="btn-refresh" style="margin-top:8px;" onclick="copyLink()">ก๊อปลิงก์หน้านี้</button>
+      <span style="display:block;margin-top:6px;color:#2c5c8a;">หรือพิมพ์เลขบาร์โค้ด / ใช้เครื่องยิงบาร์โค้ดในช่องด้านบนก็ได้</span>
+    </div>
+    <div id="reader"></div>
+    <div id="camHelp" style="display:none; margin-top:12px; background:#faeeda; border-radius:10px; padding:14px; font-size:13px; line-height:1.7; color:#633806;">
+      <b>กล้องยังไม่ได้รับอนุญาต</b><br>
+      วิธีเปิด (iPhone/Safari):<br>
+      1. แตะไอคอน <b>aA</b> ซ้ายบนของช่องเว็บ<br>
+      2. เลือก <b>การตั้งค่าเว็บไซต์</b><br>
+      3. ตั้ง <b>กล้อง</b> เป็น <b>อนุญาต</b><br>
+      4. รีเฟรชหน้า แล้วกดเปิดกล้องอีกครั้ง<br>
+      <span style="color:#854f0b;">หรือพิมพ์เลขบาร์โค้ดในช่องด้านบนแทนก็ได้</span>
+    </div>
+    <div id="iframeHelp" style="display:none; margin-top:12px; background:#e7f0fb; border-radius:10px; padding:14px; font-size:13px; line-height:1.7; color:#1a4971;">
+      <b>ต้องเปิดหน้านี้แบบเต็มจอก่อน</b><br>
+      กล้องใช้ไม่ได้เพราะหน้านี้เปิดอยู่ในกรอบซ้อน (ของ Google)<br>
+      แตะปุ่มด้านล่างเพื่อเปิดแบบเต็มจอ แล้วกดเปิดกล้องอีกครั้ง<br>
+      <button class="btn-refresh" style="margin-top:8px; background:#1d9e75; color:#fff;" onclick="openFullTab()">เปิดแบบเต็มจอเพื่อใช้กล้อง</button>
+      <span style="display:block;margin-top:6px;color:#2c5c8a;">หรือพิมพ์เลขบาร์โค้ด / ใช้เครื่องยิงบาร์โค้ดก็ได้</span>
+    </div>
+  </div>
+
+  <div class="loading" id="loading">กำลังค้นหา...</div>
+
+  <div class="notfound" id="notfound">
+    ไม่พบสินค้ารหัสนี้ในระบบ<br>
+    <span style="font-weight:400;font-size:13px">ลองตรวจว่าอัปเดตข้อมูลล่าสุดแล้วหรือยัง</span>
+  </div>
+
+  <div class="result" id="result">
+    <div class="card">
+      <div class="pname" id="rName"></div>
+      <div class="pcode" id="rCode"></div>
+      <span class="total" id="rTotal"></span>
+
+      <div class="lot-title">รายละเอียดแต่ละ lot <span style="font-weight:400;color:#999;">(แตะเพื่อแก้)</span></div>
+      <div id="rLots"></div>
+
+      <button class="btn-audit" onclick="openAddLot()" id="addLotBtn">+ เพิ่ม lot ใหม่ที่ระบบไม่มี</button>
+
+      <div class="audit-form" id="auditForm">
+        <div class="af-title" id="afTitle">ตรวจนับจริง (ไม่แก้ POS)</div>
+
+        <label class="af-label" id="afQtyLabel">จำนวนนับจริง</label>
+        <input type="number" id="afQty" class="af-input" inputmode="numeric" placeholder="เช่น 12">
+
+        <label class="af-label" id="afLotLabel">Lot จริง (ถ้าต่างจากระบบ)</label>
+        <input type="text" id="afLot" class="af-input" placeholder="เว้นว่างถ้าตรงกับระบบ">
+
+        <label class="af-label">วันหมดอายุจริง (ถ้าต่างจากระบบ)</label>
+        <input type="text" id="afExp" class="af-input" placeholder="วว/ดด/ปปปป">
+
+        <label class="af-label">หมายเหตุ</label>
+        <input type="text" id="afNote" class="af-input" placeholder="เช่น พบของชำรุด / วางผิดชั้น">
+
+        <div class="af-row">
+          <button class="btn-save" onclick="saveAudit()">บันทึก</button>
+          <button class="btn-cancel" onclick="closeAudit()">ยกเลิก</button>
+        </div>
+        <div class="af-ok" id="afOk">บันทึกเรียบร้อยแล้ว ✓</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">ระบบเช็คสต็อก • TEENOI PHARMACY</div>
+  </div><!-- /pageSearch -->
+
+  <div id="pageSummary" style="display:none;">
+    <div class="sum-head">
+      <div class="sum-tabs">
+        <button class="sum-tab sum-tab-active" id="stPending" onclick="filterAudit('pending')">ยังไม่แก้</button>
+        <button class="sum-tab" id="stFixed" onclick="filterAudit('fixed')">แก้แล้ว</button>
+        <button class="sum-tab" id="stAll" onclick="filterAudit('all')">ทั้งหมด</button>
+      </div>
+      <button class="btn-refresh" onclick="loadAudit()">โหลดรายการใหม่</button>
+    </div>
+    <div class="loading" id="sumLoading" style="display:none;">กำลังโหลด...</div>
+    <div id="sumEmpty" class="sum-empty" style="display:none;">ยังไม่มีรายการตรวจนับ</div>
+    <div id="sumList"></div>
+    <div class="foot">ระบบเช็คสต็อก • TEENOI PHARMACY</div>
+  </div><!-- /pageSummary -->
+</div>
+
+<!-- ตัวอ่านบาร์โค้ดจากกล้อง -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<!-- ตัวสร้างภาพบาร์โค้ด -->
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script>
+  // ===== ตั้งค่า: ใส่ลิงก์ Web App ของคุณตรงนี้ (ลงท้าย /exec) =====
+  var API_URL = "https://script.google.com/macros/s/AKfycbxQld7PExhL_sdjyxBx-4rcNUYh79F9dE4otMrzv9BB20pIvC_J_rhVBBOEMU1XGbbupg/exec";
+  // ================================================================
+
+  var html5QrScanner = null;
+  var cameraOn = false;
+  var currentProduct = null;  // เก็บข้อมูลสินค้าที่กำลังดูอยู่ ไว้ใช้ตอนบันทึกตรวจนับ
+  var editingLot = null;      // lot ที่กำลังแก้ (edit) หรือโหมดเพิ่ม (add)
+
+  // โหลด/รีเฟรชเวลาอัปเดตล่าสุด (เรียกได้หลายครั้ง)
+  function refreshStatus(showToast) {
+    var el = document.getElementById('lastUpdate');
+    if (showToast) el.textContent = 'กำลังโหลด...';
+    fetch(API_URL + '?action=status')
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        var t = res.lastUpdate;
+        if (t) {
+          var d = new Date(t);
+          el.textContent = 'อัปเดตล่าสุด: ' + d.toLocaleString('th-TH') + ' (แตะเพื่อรีเฟรช)';
+        } else {
+          el.textContent = 'ยังไม่มีข้อมูล (แตะเพื่อรีเฟรช)';
+        }
+      })
+      .catch(function(){ el.textContent = 'เชื่อมต่อข้อมูลไม่ได้ (แตะเพื่อลองใหม่)'; });
+  }
+  refreshStatus(false);
+
+  // กด Enter ในช่องบาร์โค้ด
+  document.getElementById('barcode').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') search();
+  });
+
+  // ตรวจเบราว์เซอร์: Chrome/Firefox บน iOS เปิดกล้องใน iframe ไม่ได้
+  (function detectBrowser() {
+    var ua = navigator.userAgent;
+    var isIOS = /iPad|iPhone|iPod/.test(ua);
+    // CriOS = Chrome บน iOS, FxiOS = Firefox บน iOS, EdgiOS = Edge บน iOS
+    var isThirdPartyIOS = /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+
+    if (isIOS && isThirdPartyIOS) {
+      // ซ่อนปุ่มกล้อง แสดงคำแนะนำให้ใช้ Safari
+      var camBtn = document.querySelector('.btn-cam');
+      if (camBtn) camBtn.style.display = 'none';
+      var tip = document.getElementById('browserTip');
+      if (tip) tip.style.display = 'block';
+    }
+
+  })();
+
+  function search() {
+    var bc = document.getElementById('barcode').value.trim();
+    if (!bc) return;
+
+    refreshStatus(false);  // อัปเดตเวลาล่าสุดทุกครั้งที่ค้นหา
+
+    document.getElementById('result').style.display = 'none';
+    document.getElementById('notfound').style.display = 'none';
+    document.getElementById('loading').style.display = 'block';
+
+    fetch(API_URL + '?action=lookup&q=' + encodeURIComponent(bc))
+      .then(function(r){ return r.json(); })
+      .then(showResult)
+      .catch(function(err){
+        document.getElementById('loading').style.display = 'none';
+        alert('เกิดข้อผิดพลาด: ' + err);
+      });
+  }
+
+  function showResult(data) {
+    document.getElementById('loading').style.display = 'none';
+
+    if (!data.found) {
+      document.getElementById('notfound').style.display = 'block';
+      return;
+    }
+
+    document.getElementById('rName').textContent = data.name;
+    document.getElementById('rCode').textContent = 'รหัส: ' + (data.productCode || '-') + '  •  บาร์โค้ด: ' + data.barcode;
+    document.getElementById('rTotal').textContent = 'คงเหลือรวม: ' + data.totalQty + ' ' + (data.unitName || 'หน่วย');
+
+    var html = '';
+    var today = new Date();
+    var soon = new Date();
+    soon.setMonth(soon.getMonth() + 3); // ใกล้หมดอายุ = ภายใน 3 เดือน
+
+    for (var i = 0; i < data.lots.length; i++) {
+      var lot = data.lots[i];
+      var expClass = '';
+      var badge = '';
+
+      if (lot.exp) {
+        var parts = lot.exp.split('/'); // dd/mm/yyyy
+        var expDate = new Date(parts[2], parts[1] - 1, parts[0]);
+        if (expDate < today) {
+          expClass = 'exp-warn';
+          badge = '<span class="badge badge-red">หมดอายุแล้ว</span>';
+        } else if (expDate < soon) {
+          expClass = 'exp-soon';
+          badge = '<span class="badge badge-amber">ใกล้หมดอายุ</span>';
+        }
+      }
+
+      html += '<div class="lot" onclick="openEditLot(' + i + ')" style="cursor:pointer;">'
+        + '<div class="lot-info">'
+        + '<div class="lot-num">' + (lot.lot || '-') + badge + '</div>'
+        + '<div class="lot-dates ' + expClass + '">'
+        + (lot.mfg ? 'ผลิต: ' + lot.mfg + '  ' : '')
+        + (lot.exp ? 'หมดอายุ: ' + lot.exp : (lot.mfg ? '' : 'ไม่มีข้อมูลวันที่'))
+        + '</div>'
+        + '</div>'
+        + '<div class="lot-qty">' + (lot.unitText || lot.qty) + '</div>'
+        + '</div>';
+    }
+
+    document.getElementById('rLots').innerHTML = html;
+    document.getElementById('result').style.display = 'block';
+
+    // เก็บข้อมูลไว้ใช้ตอนบันทึกตรวจนับ
+    currentProduct = {
+      barcode: data.barcode,
+      productCode: data.productCode || '',
+      name: data.name,
+      totalQty: data.totalQty,
+      unitName: data.unitName || 'หน่วย',
+      lots: data.lots || []
+    };
+    editingLot = null;
+    document.getElementById('auditForm').style.display = 'none';
+    document.getElementById('afOk').style.display = 'none';
+  }
+
+  // แก้ไข lot ที่มีอยู่ - เติมค่าเดิมของ lot นั้นให้
+  function openEditLot(idx) {
+    if (!currentProduct) return;
+    var lot = currentProduct.lots[idx];
+    if (!lot) return;
+    editingLot = { mode: 'edit', lot: lot };
+
+    document.getElementById('afTitle').textContent = 'แก้ไข lot: ' + (lot.lot || '-');
+    document.getElementById('afQtyLabel').textContent = 'จำนวนนับจริง (ระบบมี ' + lot.qty + ')';
+    document.getElementById('afLotLabel').textContent = 'Lot จริง (ถ้าต่างจากระบบ)';
+
+    document.getElementById('afQty').value = '';
+    document.getElementById('afLot').value = '';
+    document.getElementById('afExp').value = '';
+    document.getElementById('afNote').value = '';
+    document.getElementById('afOk').style.display = 'none';
+    document.getElementById('auditForm').style.display = 'block';
+    document.getElementById('auditForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // เพิ่ม lot ใหม่ที่ระบบไม่มี
+  function openAddLot() {
+    if (!currentProduct) return;
+    editingLot = { mode: 'add', lot: null };
+
+    document.getElementById('afTitle').textContent = 'เพิ่ม lot ใหม่ (ไม่แก้ POS)';
+    document.getElementById('afQtyLabel').textContent = 'จำนวนที่นับได้';
+    document.getElementById('afLotLabel').textContent = 'Lot (เลข lot ใหม่)';
+
+    document.getElementById('afQty').value = '';
+    document.getElementById('afLot').value = '';
+    document.getElementById('afExp').value = '';
+    document.getElementById('afNote').value = '';
+    document.getElementById('afOk').style.display = 'none';
+    document.getElementById('auditForm').style.display = 'block';
+    document.getElementById('auditForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function closeAudit() {
+    document.getElementById('auditForm').style.display = 'none';
+    editingLot = null;
+  }
+
+  function saveAudit() {
+    if (!currentProduct || !editingLot) return;
+
+    var isAdd = (editingLot.mode === 'add');
+    var lot = editingLot.lot || {};
+    var qtyVal = document.getElementById('afQty').value.trim();
+    var lotVal = document.getElementById('afLot').value.trim();
+    var expVal = document.getElementById('afExp').value.trim();
+    var noteVal = document.getElementById('afNote').value.trim();
+
+    if (isAdd) {
+      // เพิ่ม lot ใหม่ ต้องมี lot + จำนวน
+      if (!lotVal || !qtyVal) {
+        alert('กรุณากรอก Lot และจำนวน');
+        return;
+      }
+    } else {
+      // แก้ lot เดิม ต้องกรอกอย่างน้อย 1 ช่อง
+      if (!qtyVal && !lotVal && !expVal && !noteVal) {
+        alert('กรุณากรอกอย่างน้อย 1 ช่อง');
+        return;
+      }
+    }
+
+    var rec = {
+      barcode: currentProduct.barcode,
+      productCode: currentProduct.productCode,
+      name: currentProduct.name,
+      sysQty: isAdd ? 0 : (lot.qty || 0),
+      realQty: qtyVal,
+      sysLot: isAdd ? '(lot ใหม่)' : (lot.lot || ''),
+      realLot: lotVal,
+      sysExp: isAdd ? '' : (lot.exp || ''),
+      realExp: expVal,
+      note: (isAdd ? '[เพิ่ม lot ใหม่] ' : '') + noteVal
+    };
+
+    var btn = document.querySelector('.btn-save');
+    btn.textContent = 'กำลังบันทึก...';
+    btn.disabled = true;
+
+    fetch(API_URL + '?action=saveAudit&data=' + encodeURIComponent(JSON.stringify(rec)))
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        btn.textContent = 'บันทึก';
+        btn.disabled = false;
+        if (res && res.ok) {
+          document.getElementById('afOk').style.display = 'block';
+          setTimeout(closeAudit, 1200);
+        } else {
+          alert('บันทึกไม่สำเร็จ: ' + (res ? res.error : 'ไม่ทราบสาเหตุ'));
+        }
+      })
+      .catch(function(err){
+        btn.textContent = 'บันทึก';
+        btn.disabled = false;
+        alert('เกิดข้อผิดพลาด: ' + err);
+      });
+  }
+
+  function toggleCamera() {
+    if (cameraOn) {
+      stopCamera();
+      return;
+    }
+    document.getElementById('camLabel').textContent = 'ปิดกล้อง';
+    cameraOn = true;
+
+    html5QrScanner = new Html5Qrcode('reader');
+    html5QrScanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 250, height: 150 } },
+      function(decodedText) {
+        document.getElementById('barcode').value = decodedText;
+        stopCamera();
+        search();
+      },
+      function(err) {}
+    ).catch(function(err) {
+      var msg = String(err);
+      if (msg.indexOf('NotAllowed') >= 0 || msg.indexOf('denied') >= 0 || msg.indexOf('Permission') >= 0) {
+        showCamHelp();
+      } else if (msg.indexOf('NotFound') >= 0) {
+        alert('ไม่พบกล้องบนอุปกรณ์นี้ — ใช้วิธีพิมพ์บาร์โค้ดแทนได้ครับ');
+      } else {
+        alert('เปิดกล้องไม่ได้: ' + msg + '\n\nใช้วิธีพิมพ์บาร์โค้ดแทนได้ครับ');
+      }
+      stopCamera();
+    });
+  }
+
+  function showIframeHelp() {
+    var box = document.getElementById('iframeHelp');
+    if (box) box.style.display = 'block';
+  }
+
+  // เปิดหน้านี้ในแท็บเต็ม (นอก iframe) เพื่อให้กล้องทำงาน
+  function openFullTab() {
+    var url = getTopUrl();
+    window.open(url, '_blank');
+  }
+
+  function getTopUrl() {
+    // พยายามหา URL จริงของหน้า (นอก iframe)
+    try {
+      if (document.referrer && document.referrer.indexOf('script.google') >= 0) {
+        return document.referrer;
+      }
+    } catch (e) {}
+    return window.location.href;
+  }
+
+  function showCamHelp() {
+    var box = document.getElementById('camHelp');
+    box.style.display = 'block';
+  }
+
+  function copyLink() {
+    var url = window.location.href;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function() {
+        alert('ก๊อปลิงก์แล้ว! เปิด Safari แล้ววางลิงก์เพื่อใช้กล้องสแกน');
+      }).catch(function() {
+        prompt('ก๊อปลิงก์นี้ไปเปิดใน Safari:', url);
+      });
+    } else {
+      prompt('ก๊อปลิงก์นี้ไปเปิดใน Safari:', url);
+    }
+  }
+
+  function stopCamera() {
+    if (html5QrScanner) {
+      html5QrScanner.stop().then(function() {
+        html5QrScanner.clear();
+      }).catch(function(){});
+    }
+    document.getElementById('camLabel').textContent = 'เปิดกล้องสแกน';
+    cameraOn = false;
+  }
+
+  // ============ หน้าสรุปการตรวจนับ ============
+  var auditData = [];
+  var auditFilter = 'pending';
+
+  function showPage(page) {
+    var isSearch = (page === 'search');
+    document.getElementById('pageSearch').style.display = isSearch ? 'block' : 'none';
+    document.getElementById('pageSummary').style.display = isSearch ? 'none' : 'block';
+    document.getElementById('tabSearch').className = isSearch ? 'tab tab-active' : 'tab';
+    document.getElementById('tabSummary').className = isSearch ? 'tab' : 'tab tab-active';
+    if (!isSearch) loadAudit();
+  }
+
+  function loadAudit() {
+    document.getElementById('sumLoading').style.display = 'block';
+    document.getElementById('sumEmpty').style.display = 'none';
+    document.getElementById('sumList').innerHTML = '';
+
+    fetch(API_URL + '?action=auditList')
+      .then(function(r){ return r.json(); })
+      .then(function(list){
+        document.getElementById('sumLoading').style.display = 'none';
+        auditData = list || [];
+        renderAudit();
+      })
+      .catch(function(err){
+        document.getElementById('sumLoading').style.display = 'none';
+        alert('โหลดรายการไม่สำเร็จ: ' + err);
+      });
+  }
+
+  function filterAudit(f) {
+    auditFilter = f;
+    document.getElementById('stPending').className = (f === 'pending') ? 'sum-tab sum-tab-active' : 'sum-tab';
+    document.getElementById('stFixed').className = (f === 'fixed') ? 'sum-tab sum-tab-active' : 'sum-tab';
+    document.getElementById('stAll').className = (f === 'all') ? 'sum-tab sum-tab-active' : 'sum-tab';
+    renderAudit();
+  }
+
+  function isFixed(item) {
+    return String(item.status || '').indexOf('แก้แล้ว') === 0;
+  }
+
+  function renderAudit() {
+    var list = auditData.filter(function(it) {
+      if (auditFilter === 'pending') return !isFixed(it);
+      if (auditFilter === 'fixed') return isFixed(it);
+      return true;
+    });
+
+    var box = document.getElementById('sumList');
+    if (list.length === 0) {
+      box.innerHTML = '';
+      document.getElementById('sumEmpty').style.display = 'block';
+      return;
+    }
+    document.getElementById('sumEmpty').style.display = 'none';
+
+    var html = '';
+    for (var i = 0; i < list.length; i++) {
+      var it = list[i];
+      var fixed = isFixed(it);
+      var diffTxt = '';
+      if (it.diff !== '' && it.diff != null) {
+        var cls = (Number(it.diff) >= 0) ? 'sum-diff-pos' : 'sum-diff-neg';
+        var sign = (Number(it.diff) > 0) ? '+' : '';
+        diffTxt = '<span class="' + cls + '">' + sign + it.diff + '</span>';
+      }
+
+      var bcId = 'bc_' + it.row;
+      html += '<div class="sum-card' + (fixed ? ' fixed' : '') + '">';
+      if (fixed) html += '<div class="badge-fixed">' + it.status + '</div>';
+      html += '<div class="sum-name">' + (it.name || '-') + '</div>';
+
+      if (it.barcode) {
+        html += '<svg class="sum-bc-img" id="' + bcId + '"></svg>';
+        html += '<div class="sum-bc-num">' + it.barcode + '</div>';
+      } else {
+        html += '<div class="sum-bc-num">ไม่มีบาร์โค้ด</div>';
+      }
+
+      html += '<div class="sum-grid">';
+      if (it.realQty !== '' && it.realQty != null)
+        html += 'จำนวน: ระบบ <b>' + it.sysQty + '</b> → นับจริง <b>' + it.realQty + '</b> (ส่วนต่าง ' + diffTxt + ')<br>';
+      if (it.realLot) html += 'Lot: ระบบ <b>' + (it.sysLot || '-') + '</b> → จริง <b>' + it.realLot + '</b><br>';
+      if (it.realExp) html += 'วันหมดอายุ: ระบบ <b>' + (it.sysExp || '-') + '</b> → จริง <b>' + it.realExp + '</b><br>';
+      if (it.note) html += 'หมายเหตุ: ' + it.note + '<br>';
+      html += '</div>';
+      html += '<div class="sum-time">ตรวจนับเมื่อ ' + it.time + '</div>';
+
+      if (!fixed) {
+        html += '<button class="btn-fixed" onclick="markFixed(' + it.row + ')">ติ๊กว่าแก้ที่ POS แล้ว</button>';
+      }
+      html += '</div>';
+    }
+    box.innerHTML = html;
+
+    // วาดภาพบาร์โค้ดหลังใส่ HTML แล้ว
+    for (var j = 0; j < list.length; j++) {
+      var it2 = list[j];
+      if (!it2.barcode) continue;
+      try {
+        JsBarcode('#bc_' + it2.row, String(it2.barcode), {
+          format: 'CODE128', width: 1.6, height: 44, fontSize: 12, margin: 0
+        });
+      } catch (e) {}
+    }
+  }
+
+  function markFixed(rowNum) {
+    if (!confirm('ยืนยันว่าแก้ที่ POS เรียบร้อยแล้ว?')) return;
+    fetch(API_URL + '?action=markFixed&row=' + rowNum)
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        if (res && res.ok) {
+          loadAudit();
+        } else {
+          alert('ทำเครื่องหมายไม่สำเร็จ: ' + (res ? res.error : ''));
+        }
+      })
+      .catch(function(err){ alert('ผิดพลาด: ' + err); });
+  }
+</script>
+</body>
+</html>
