@@ -311,8 +311,9 @@
     // CriOS = Chrome บน iOS, FxiOS = Firefox บน iOS, EdgiOS = Edge บน iOS
     var isThirdPartyIOS = /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
 
+    // เฉพาะ Chrome/Firefox บน iPhone เท่านั้นที่กล้องใช้ไม่ได้ (Apple ล็อกระดับ OS)
+    // Android Chrome และเบราว์เซอร์อื่นๆ ใช้กล้องได้ตามปกติ
     if (isIOS && isThirdPartyIOS) {
-      // ซ่อนปุ่มกล้อง แสดงคำแนะนำให้ใช้ Safari
       var camBtn = document.querySelector('.btn-cam');
       if (camBtn) camBtn.style.display = 'none';
       var tip = document.getElementById('browserTip');
@@ -514,10 +515,24 @@
     document.getElementById('camLabel').textContent = 'ปิดกล้อง';
     cameraOn = true;
 
-    html5QrScanner = new Html5Qrcode('reader');
+    html5QrScanner = new Html5Qrcode('reader', {
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E,
+        Html5QrcodeSupportedFormats.CODE_39
+      ],
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true }
+    });
     html5QrScanner.start(
       { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 250, height: 150 } },
+      {
+        fps: 24,
+        qrbox: { width: 280, height: 170 },
+        aspectRatio: 1.777
+      },
       function(decodedText) {
         document.getElementById('barcode').value = decodedText;
         stopCamera();
