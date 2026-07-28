@@ -142,12 +142,65 @@
 <div class="wrap">
 
   <div class="tabs">
-    <button class="tab active" id="tabSearch" onclick="showPage('search')">ค้นหา / ตรวจนับ</button>
-    <button class="tab" id="tabSummary" onclick="showPage('summary')">สรุปที่ตรวจนับ</button>
+    <button class="tab active" id="tabDash" onclick="showPage('dash')">แดชบอร์ด</button>
+    <button class="tab" id="tabSearch" onclick="showPage('search')">ค้นหา</button>
+    <button class="tab" id="tabSummary" onclick="showPage('summary')">สรุป</button>
+  </div>
+
+  <!-- หน้าแดชบอร์ด -->
+  <div id="pageDash">
+    <div class="loading" id="dashLoading">กำลังโหลด...</div>
+    <div id="dashContent" style="display:none;">
+
+      <div class="card"><div class="pad">
+        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;">
+          <span style="font-size:14px; color:#666;">ความคืบหน้าตรวจนับ</span>
+          <span style="font-size:13px; color:#999;" id="dProgTxt">- / -</span>
+        </div>
+        <div style="height:14px; background:#f0f0f0; border-radius:8px; overflow:hidden; margin-bottom:8px;">
+          <div id="dProgBar" style="width:0%; height:100%; background:#1d9e75; border-radius:8px; transition:width .4s;"></div>
+        </div>
+        <div style="text-align:center; font-size:28px; font-weight:700; color:#1d9e75;" id="dPercent">0%</div>
+        <div style="text-align:center; font-size:12px; color:#999;" id="dRemain"></div>
+      </div></div>
+
+      <div style="display:flex; gap:10px; margin-bottom:10px;">
+        <div class="card" style="flex:1; margin:0;"><div class="pad" style="text-align:center;">
+          <div style="font-size:32px; font-weight:700; color:#c47d1a;" id="dToFix">0</div>
+          <div style="font-size:12px; color:#666;">ต้องแก้ POS</div>
+        </div></div>
+        <div class="card" style="flex:1; margin:0;"><div class="pad" style="text-align:center;">
+          <div style="font-size:32px; font-weight:700; color:#1d9e75;" id="dMatched">0</div>
+          <div style="font-size:12px; color:#666;">ตรวจแล้ว-ตรง</div>
+        </div></div>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-bottom:10px;">
+        <div class="card" style="flex:1; margin:0; background:#faeeda;"><div class="pad">
+          <div style="font-size:24px; font-weight:700; color:#a5730f;" id="dNear">0</div>
+          <div style="font-size:12px; color:#a5730f;">ใกล้หมดอายุ (3 ด.)</div>
+        </div></div>
+        <div class="card" style="flex:1; margin:0; background:#faece7;"><div class="pad">
+          <div style="font-size:24px; font-weight:700; color:#b3421f;" id="dExpired">0</div>
+          <div style="font-size:12px; color:#b3421f;">หมดอายุแล้ว</div>
+        </div></div>
+      </div>
+
+      <div class="card" id="dUrgentCard" style="display:none;"><div class="pad">
+        <div style="font-size:14px; font-weight:600; margin-bottom:8px;">ต้องรีบจัดการ</div>
+        <div id="dUrgent"></div>
+      </div></div>
+
+      <div style="display:flex; gap:10px; margin-top:4px;">
+        <button class="btn-scan" style="flex:1; height:48px; font-size:15px;" onclick="showPage('search')">เริ่มตรวจนับ</button>
+        <button class="btn-add" style="flex:1; margin:0; height:48px;" onclick="showPage('summary')">ดูรายการต้องแก้</button>
+      </div>
+    </div>
+    <div class="foot">ระบบเช็คสต็อก • TEENOI PHARMACY</div>
   </div>
 
   <!-- หน้าค้นหา -->
-  <div id="pageSearch">
+  <div id="pageSearch" style="display:none;">
     <div class="header">
       <h1>เช็คสต็อก</h1>
       <div class="sub" id="lastUpdate" onclick="refreshData()">กำลังโหลด...</div>
@@ -204,9 +257,9 @@
   <!-- หน้าสรุป -->
   <div id="pageSummary" style="display:none;">
     <div class="sum-tabs">
-      <button class="sum-tab active" id="stPending" onclick="filterAudit('pending')">ยังไม่แก้</button>
-      <button class="sum-tab" id="stFixed" onclick="filterAudit('fixed')">แก้แล้ว</button>
-      <button class="sum-tab" id="stAll" onclick="filterAudit('all')">ทั้งหมด</button>
+      <button class="sum-tab active" id="stFix" onclick="filterAudit('tofix')">ต้องแก้</button>
+      <button class="sum-tab" id="stMatch" onclick="filterAudit('matched')">ตรวจแล้ว-ตรง</button>
+      <button class="sum-tab" id="stDone" onclick="filterAudit('fixed')">แก้แล้ว</button>
     </div>
     <button class="btn-add" onclick="loadAudit()" style="margin-bottom:10px;">โหลดรายการใหม่</button>
     <div class="loading" id="sumLoading" style="display:none;">กำลังโหลด...</div>
@@ -542,13 +595,49 @@
 
   // ---------- สลับหน้า + สรุป ----------
   function showPage(page) {
-    var isS = (page === 'search');
-    document.getElementById('pageSearch').style.display = isS ? 'block' : 'none';
-    document.getElementById('pageSummary').style.display = isS ? 'none' : 'block';
-    document.getElementById('tabSearch').className = isS ? 'tab active' : 'tab';
-    document.getElementById('tabSummary').className = isS ? 'tab' : 'tab active';
-    if (!isS) loadAudit();
+    var pages = { dash: 'pageDash', search: 'pageSearch', summary: 'pageSummary' };
+    for (var pg in pages) document.getElementById(pages[pg]).style.display = (pg === page) ? 'block' : 'none';
+    document.getElementById('tabDash').className = page === 'dash' ? 'tab active' : 'tab';
+    document.getElementById('tabSearch').className = page === 'search' ? 'tab active' : 'tab';
+    document.getElementById('tabSummary').className = page === 'summary' ? 'tab active' : 'tab';
+    if (page === 'summary') loadAudit();
+    if (page === 'dash') loadDashboard();
   }
+
+  function loadDashboard() {
+    document.getElementById('dashLoading').style.display = 'block';
+    document.getElementById('dashContent').style.display = 'none';
+    fetch(API_URL + '?action=dashboard')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        document.getElementById('dashLoading').style.display = 'none';
+        document.getElementById('dashContent').style.display = 'block';
+        document.getElementById('dProgTxt').textContent = d.checkedCount + ' / ' + d.totalProducts + ' รายการ';
+        document.getElementById('dProgBar').style.width = d.percent + '%';
+        document.getElementById('dPercent').textContent = d.percent + '%';
+        document.getElementById('dRemain').textContent = 'เหลืออีก ' + (d.totalProducts - d.checkedCount) + ' รายการ';
+        document.getElementById('dToFix').textContent = d.toFix;
+        document.getElementById('dMatched').textContent = d.matched;
+        document.getElementById('dNear').textContent = d.nearExp;
+        document.getElementById('dExpired').textContent = d.expired;
+        var u = d.urgent || [];
+        if (u.length > 0) {
+          document.getElementById('dUrgentCard').style.display = 'block';
+          var h = '';
+          for (var i = 0; i < u.length; i++) {
+            var col = u[i].kind === 'expired' ? '#b3421f' : (u[i].kind === 'near' ? '#a5730f' : '#c47d1a');
+            h += '<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0;' + (i < u.length-1 ? ' border-bottom:0.5px solid #eee;' : '') + '">'
+              + '<div><div style="font-size:14px; font-weight:500;">' + u[i].name + '</div>'
+              + '<div style="font-size:11px; color:' + col + ';">' + u[i].detail + '</div></div></div>';
+          }
+          document.getElementById('dUrgent').innerHTML = h;
+        } else {
+          document.getElementById('dUrgentCard').style.display = 'none';
+        }
+      })
+      .catch(function(err){ document.getElementById('dashLoading').textContent = 'โหลดแดชบอร์ดไม่ได้'; });
+  }
+
   function loadAudit() {
     document.getElementById('sumLoading').style.display = 'block';
     document.getElementById('sumEmpty').style.display = 'none';
@@ -560,24 +649,25 @@
   }
   function filterAudit(f) {
     auditFilter = f;
-    document.getElementById('stPending').className = f==='pending' ? 'sum-tab active' : 'sum-tab';
-    document.getElementById('stFixed').className = f==='fixed' ? 'sum-tab active' : 'sum-tab';
-    document.getElementById('stAll').className = f==='all' ? 'sum-tab active' : 'sum-tab';
+    document.getElementById('stFix').className = f==='tofix' ? 'sum-tab active' : 'sum-tab';
+    document.getElementById('stMatch').className = f==='matched' ? 'sum-tab active' : 'sum-tab';
+    document.getElementById('stDone').className = f==='fixed' ? 'sum-tab active' : 'sum-tab';
     renderAudit();
   }
   function isFixed(it) { return String(it.status || '').indexOf('แก้แล้ว') === 0; }
+  function isMatched(it) { return String(it.note || '').indexOf('[ตรงกับระบบ]') >= 0 || it.diff === 0; }
   function renderAudit() {
     var list = auditData.filter(function(it){
-      if (auditFilter === 'pending') return !isFixed(it);
       if (auditFilter === 'fixed') return isFixed(it);
-      return true;
+      if (auditFilter === 'matched') return !isFixed(it) && isMatched(it);
+      return !isFixed(it) && !isMatched(it);  // tofix = ยังไม่แก้ + ไม่ตรง
     });
     var box = document.getElementById('sumList');
     if (list.length === 0) { box.innerHTML = ''; document.getElementById('sumEmpty').style.display = 'block'; return; }
     document.getElementById('sumEmpty').style.display = 'none';
     var html = '';
     for (var i = 0; i < list.length; i++) {
-      var it = list[i], fx = isFixed(it), diff = '';
+      var it = list[i], fx = isFixed(it), mt = isMatched(it), diff = '';
       if (it.diff !== '' && it.diff != null) {
         var cls = Number(it.diff) >= 0 ? 'diff-pos' : 'diff-neg';
         var sign = Number(it.diff) > 0 ? '+' : '';
@@ -585,6 +675,7 @@
       }
       html += '<div class="sum-card' + (fx ? ' fixed' : '') + '">';
       if (fx) html += '<div class="badge-fixed">' + it.status + '</div>';
+      else if (mt) html += '<div class="badge-fixed">ตรวจแล้ว-ตรง</div>';
       html += '<div class="sum-name">' + (it.name || '-') + '</div>';
       if (it.barcode) { html += '<svg class="sum-bc" id="bc_' + it.row + '"></svg><div class="sum-bcnum">' + it.barcode + '</div>'; }
       html += '<div class="sum-grid">';
@@ -592,7 +683,7 @@
       if (it.realLot) html += 'Lot จริง: <b>' + it.realLot + '</b><br>';
       if (it.realExp) html += 'วันหมดอายุ: <b>' + it.realExp + '</b><br>';
       html += '</div><div class="sum-time">ตรวจนับ ' + it.time + '</div>';
-      if (!fx) html += '<button class="btn-fixed" onclick="markFixed(' + it.row + ')">ติ๊กว่าแก้ที่ POS แล้ว</button>';
+      if (!fx && !mt) html += '<button class="btn-fixed" onclick="markFixed(' + it.row + ')">ติ๊กว่าแก้ที่ POS แล้ว</button>';
       html += '</div>';
     }
     box.innerHTML = html;
@@ -619,6 +710,7 @@
     }
   })();
   refreshData();  // โหลด cache ตอนเปิดแอป
+  loadDashboard();  // โหลดแดชบอร์ด (แท็บแรก)
 </script>
 </body>
 </html>
