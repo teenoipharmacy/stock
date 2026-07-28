@@ -2,727 +2,623 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>เช็คสต็อก</title>
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
     font-family: -apple-system, "Segoe UI", Roboto, "Sarabun", sans-serif;
-    margin: 0; padding: 0; background: #f4f5f7; color: #1a1a1a;
+    margin: 0; padding: 0; background: #f4f5f7; color: #1a1a1a; font-size: 16px;
   }
-  .header {
-    background: #1d9e75; color: #fff; padding: 16px;
-    text-align: center; position: sticky; top: 0; z-index: 10;
-  }
-  .header h1 { margin: 0; font-size: 20px; font-weight: 600; }
-  .header .sub { font-size: 12px; opacity: 0.85; margin-top: 4px; }
-  .wrap { padding: 16px; max-width: 600px; margin: 0 auto; }
+  .wrap { max-width: 600px; margin: 0 auto; padding: 12px; }
 
-  .scan-box {
-    background: #fff; border-radius: 14px; padding: 16px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 16px;
-  }
-  .scan-box label { font-size: 13px; color: #666; display: block; margin-bottom: 8px; }
-  .input-row { display: flex; gap: 8px; }
-  #barcode {
-    flex: 1; font-size: 18px; padding: 12px; border: 2px solid #ddd;
-    border-radius: 10px; outline: none;
-  }
+  /* หัวเว็บ */
+  .header { background: #1d9e75; color: #fff; border-radius: 14px 14px 0 0; padding: 14px 16px; }
+  .header h1 { margin: 0; font-size: 18px; font-weight: 600; }
+  .header .sub { font-size: 11px; opacity: 0.9; margin-top: 3px; cursor: pointer; }
+
+  .card { background: #fff; border-radius: 14px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 10px; }
+  .card.top { border-radius: 0 0 14px 14px; margin-top: 0; }
+  .pad { padding: 12px; }
+
+  /* ช่องค้นหา */
+  .search-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  #barcode { flex: 1; height: 46px; padding: 0 12px; border: 1.5px solid #ddd; border-radius: 10px; font-size: 16px; outline: none; }
   #barcode:focus { border-color: #1d9e75; }
-  .btn {
-    background: #1d9e75; color: #fff; border: none; border-radius: 10px;
-    padding: 0 18px; font-size: 16px; font-weight: 600; cursor: pointer;
-  }
-  .btn:active { background: #157a5a; }
-  .btn-cam {
-    background: #fff; color: #1d9e75; border: 2px solid #1d9e75;
-    width: 100%; padding: 12px; margin-top: 10px; border-radius: 10px;
-    font-size: 15px; font-weight: 600; cursor: pointer;
-  }
+  .btn-find { width: 46px; height: 46px; border: none; border-radius: 10px; background: #1d9e75; color: #fff; font-size: 20px; }
 
-  #reader { margin-top: 12px; border-radius: 10px; overflow: hidden; }
-
-  .result { display: none; }
-  .card {
-    background: #fff; border-radius: 14px; padding: 18px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 14px;
+  .btn-scan {
+    width: 100%; height: 52px; border: none; border-radius: 12px; background: #1d9e75;
+    color: #fff; font-size: 17px; font-weight: 600; display: flex; align-items: center;
+    justify-content: center; gap: 8px;
   }
-  .pname { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
-  .pcode { font-size: 12px; color: #888; margin-bottom: 14px; }
-  .total {
-    display: inline-block; background: #e1f5ee; color: #0f6e56;
-    font-size: 15px; font-weight: 600; padding: 6px 14px; border-radius: 20px;
-  }
+  .btn-scan:active { background: #157a5a; }
+  #reader { margin-top: 12px; border-radius: 12px; overflow: hidden; }
 
-  .lot-title { font-size: 13px; color: #666; margin: 16px 0 8px; }
+  /* กล่องข้อความช่วยเหลือ */
+  .tip { margin-top: 10px; padding: 12px; border-radius: 10px; font-size: 13px; line-height: 1.6; }
+  .tip-blue { background: #e7f0fb; color: #1a4971; }
+  .tip-amber { background: #faeeda; color: #633806; }
+
+  /* ผลลัพธ์ */
+  .pname { font-size: 17px; font-weight: 600; line-height: 1.3; }
+  .psub { font-size: 13px; color: #999; font-weight: 400; }
+  .chips { display: flex; gap: 8px; margin: 10px 0 4px; flex-wrap: wrap; }
+  .chip { font-size: 12px; padding: 4px 10px; border-radius: 8px; }
+  .chip-gray { background: #f1f1f1; color: #666; }
+  .chip-green { background: #e1f5ee; color: #0f6e56; font-weight: 600; }
+  .chip-price { background: #fef3e2; color: #9a5b0e; font-weight: 700; }
+  .hint { font-size: 12px; color: #999; margin: 14px 0 8px; }
+
   .lot {
-    border: 1px solid #eee; border-radius: 10px; padding: 12px;
-    margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;
+    border: 1px solid #eee; border-radius: 10px; padding: 12px; margin-bottom: 8px;
+    display: flex; justify-content: space-between; align-items: center; cursor: pointer;
   }
-  .lot-info { flex: 1; }
+  .lot.warn { border-color: #f0c98a; }
+  .lot.expired { border-color: #e8a08a; }
   .lot-num { font-size: 15px; font-weight: 600; }
-  .lot-dates { font-size: 12px; color: #777; margin-top: 4px; }
-  .lot-qty { font-size: 15px; font-weight: 700; color: #1d9e75; text-align: right; min-width: 90px; white-space: nowrap; }
-  .exp-warn { color: #d85a30 !important; font-weight: 600; }
-  .exp-soon { color: #ba7517 !important; font-weight: 600; }
-
-  .badge {
-    display: inline-block; font-size: 11px; padding: 2px 8px;
-    border-radius: 12px; margin-left: 6px;
-  }
-  .badge-red { background: #faece7; color: #993c1d; }
+  .lot-dates { font-size: 12px; color: #777; margin-top: 3px; }
+  .lot-dates.warn { color: #a5730f; }
+  .lot-dates.expired { color: #b3421f; }
+  .lot-qty { font-size: 16px; font-weight: 600; color: #1d9e75; text-align: right; white-space: nowrap; }
+  .lot-qty small { display: block; font-size: 11px; color: #999; font-weight: 400; }
+  .badge { font-size: 10px; padding: 2px 7px; border-radius: 10px; margin-left: 4px; }
   .badge-amber { background: #faeeda; color: #854f0b; }
+  .badge-red { background: #faece7; color: #993c1d; }
 
-  .notfound {
-    display: none; background: #fcebeb; color: #a32d2d;
-    padding: 16px; border-radius: 12px; text-align: center; font-weight: 600;
+  .btn-add {
+    width: 100%; height: 44px; border: 1px dashed #bbb; border-radius: 10px;
+    background: #fafafa; color: #666; font-size: 14px; margin-top: 4px;
   }
-  .loading { text-align: center; color: #888; padding: 20px; display: none; }
-  .foot { text-align: center; font-size: 11px; color: #aaa; margin-top: 20px; }
 
-  .btn-audit {
-    width: 100%; margin-top: 16px; padding: 12px; border-radius: 10px;
-    background: #fff; color: #1d9e75; border: 2px solid #1d9e75;
-    font-size: 15px; font-weight: 600; cursor: pointer;
+  /* ฟอร์มแก้ไข (เต็มจอ) */
+  .sheet {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100;
+    display: none; align-items: flex-end;
   }
-  .btn-audit:active { background: #f0faf6; }
-  .audit-form { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px dashed #ddd; }
-  .af-title { font-size: 14px; font-weight: 600; color: #0f6e56; margin-bottom: 12px; }
-  .af-label { display: block; font-size: 12px; color: #666; margin: 10px 0 4px; }
-  .af-input {
-    width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 8px;
-    font-size: 15px; outline: none;
+  .sheet.show { display: flex; }
+  .sheet-inner {
+    background: #fff; width: 100%; max-width: 600px; margin: 0 auto;
+    border-radius: 18px 18px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+    max-height: 92vh; overflow-y: auto;
   }
-  .af-input:focus { border-color: #1d9e75; }
-  .af-row { display: flex; gap: 8px; margin-top: 14px; }
-  .btn-save {
-    flex: 1; padding: 12px; border-radius: 8px; border: none;
-    background: #1d9e75; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+  .sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2px; }
+  .sheet-title { font-size: 15px; font-weight: 600; color: #0f6e56; }
+  .btn-x { width: 34px; height: 34px; border: none; background: #f2f2f2; border-radius: 9px; font-size: 18px; color: #888; }
+  .sheet-lot { font-size: 22px; font-weight: 600; margin-bottom: 16px; }
+
+  .btn-match {
+    width: 100%; height: 54px; border: none; border-radius: 12px; background: #1d9e75;
+    color: #fff; font-size: 17px; font-weight: 600; display: flex; align-items: center;
+    justify-content: center; gap: 8px;
   }
+  .btn-match:active { background: #157a5a; }
+  .or-line { text-align: center; font-size: 12px; color: #aaa; margin: 12px 0 16px; }
+
+  .flabel { font-size: 13px; color: #666; margin-bottom: 6px; display: block; }
+  .qty-row { display: flex; gap: 8px; margin-bottom: 8px; }
+  .qty-btn { width: 52px; height: 54px; border: 1.5px solid #ddd; border-radius: 12px; background: #fafafa; font-size: 26px; color: #555; }
+  .qty-btn:active { background: #eee; }
+  #afQty { flex: 1; height: 54px; text-align: center; border: 1.5px solid #ddd; border-radius: 12px; font-size: 22px; font-weight: 600; outline: none; }
+  #afQty:focus { border-color: #1d9e75; }
+
+  .unit-row { display: flex; gap: 8px; margin-bottom: 18px; }
+  .unit-btn { flex: 1; height: 44px; border: 1px solid #ddd; border-radius: 10px; background: #fafafa; color: #666; font-size: 14px; font-weight: 500; }
+  .unit-btn.active { border: 2px solid #1d9e75; background: #e6f6f0; color: #0f6e56; }
+
+  #afExp { width: 100%; height: 54px; padding: 0 14px; border: 1.5px solid #ddd; border-radius: 12px; font-size: 17px; margin-bottom: 18px; outline: none; }
+  #afExp:focus { border-color: #1d9e75; }
+
+  .btn-save { width: 100%; height: 54px; border: none; border-radius: 12px; background: #1d9e75; color: #fff; font-size: 17px; font-weight: 600; }
   .btn-save:active { background: #157a5a; }
-  .btn-cancel {
-    flex: 1; padding: 12px; border-radius: 8px; border: 2px solid #ddd;
-    background: #fff; color: #888; font-size: 15px; cursor: pointer;
-  }
-  .af-ok { display: none; text-align: center; color: #1d9e75; font-weight: 600; margin-top: 12px; }
-  .header .sub { cursor: pointer; }
-  .btn-refresh {
-    width: 100%; margin-top: 10px; padding: 10px; border-radius: 10px;
-    background: #eef1f4; color: #555; border: none;
-    font-size: 14px; font-weight: 600; cursor: pointer;
-  }
-  .btn-refresh:active { background: #e0e4e9; }
+  .save-ok { display: none; text-align: center; color: #1d9e75; font-weight: 600; margin-top: 12px; }
 
-  .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
-  .tab {
-    flex: 1; padding: 12px; border-radius: 10px; border: none; cursor: pointer;
-    background: #e6e9ee; color: #667; font-size: 14px; font-weight: 600;
-  }
-  .tab-active { background: #1d9e75; color: #fff; }
+  /* แท็บ */
+  .tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+  .tab { flex: 1; height: 42px; border: none; border-radius: 10px; background: #e6e9ee; color: #667; font-size: 14px; font-weight: 600; }
+  .tab.active { background: #1d9e75; color: #fff; }
 
-  .sum-head { margin-bottom: 12px; }
+  /* หน้าสรุป */
   .sum-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
-  .sum-tab {
-    flex: 1; padding: 8px; border-radius: 8px; border: 1px solid #ddd; cursor: pointer;
-    background: #fff; color: #777; font-size: 13px; font-weight: 600;
-  }
-  .sum-tab-active { background: #0f6e56; color: #fff; border-color: #0f6e56; }
-  .sum-empty { text-align: center; color: #999; padding: 40px 0; }
-
-  .sum-card {
-    background: #fff; border-radius: 14px; padding: 14px; margin-bottom: 12px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-  }
+  .sum-tab { flex: 1; height: 38px; border: 1px solid #ddd; border-radius: 8px; background: #fff; color: #777; font-size: 13px; font-weight: 600; }
+  .sum-tab.active { background: #0f6e56; color: #fff; border-color: #0f6e56; }
+  .sum-card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
   .sum-card.fixed { opacity: 0.55; }
   .sum-name { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
-  .sum-bc-img { width: 100%; max-width: 240px; display: block; margin: 4px 0; }
-  .sum-bc-num { font-size: 12px; color: #666; letter-spacing: 1px; margin-bottom: 8px; }
+  .sum-bc { width: 100%; max-width: 240px; display: block; margin: 4px 0; }
+  .sum-bcnum { font-size: 12px; color: #666; letter-spacing: 1px; margin-bottom: 8px; }
   .sum-grid { font-size: 13px; line-height: 1.8; }
-  .sum-grid b { color: #333; }
-  .sum-diff-pos { color: #1d9e75; font-weight: 700; }
-  .sum-diff-neg { color: #d85a30; font-weight: 700; }
   .sum-time { font-size: 11px; color: #aaa; margin-top: 6px; }
-  .btn-fixed {
-    width: 100%; margin-top: 10px; padding: 10px; border-radius: 8px; border: 2px solid #1d9e75;
-    background: #fff; color: #1d9e75; font-size: 14px; font-weight: 600; cursor: pointer;
-  }
-  .btn-fixed:active { background: #f0faf6; }
-  .badge-fixed {
-    display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 12px;
-    background: #e1f5ee; color: #0f6e56; margin-bottom: 8px;
-  }
+  .btn-fixed { width: 100%; height: 42px; margin-top: 10px; border: 2px solid #1d9e75; border-radius: 8px; background: #fff; color: #1d9e75; font-size: 14px; font-weight: 600; }
+  .badge-fixed { display: inline-block; font-size: 11px; padding: 3px 10px; border-radius: 12px; background: #e1f5ee; color: #0f6e56; margin-bottom: 8px; }
+  .empty { text-align: center; color: #999; padding: 40px 0; }
+  .loading { text-align: center; color: #888; padding: 20px; }
+  .diff-pos { color: #1d9e75; font-weight: 700; }
+  .diff-neg { color: #d85a30; font-weight: 700; }
+  .foot { text-align: center; font-size: 11px; color: #bbb; margin: 16px 0; }
 </style>
 </head>
 <body>
-
-<div class="header">
-  <h1>เช็คสต็อก</h1>
-  <div class="sub" id="lastUpdate" onclick="refreshStatus(true)">กำลังโหลด...</div>
-</div>
-
 <div class="wrap">
+
   <div class="tabs">
-    <button class="tab tab-active" id="tabSearch" onclick="showPage('search')">ค้นหา / ตรวจนับ</button>
+    <button class="tab active" id="tabSearch" onclick="showPage('search')">ค้นหา / ตรวจนับ</button>
     <button class="tab" id="tabSummary" onclick="showPage('summary')">สรุปที่ตรวจนับ</button>
   </div>
 
+  <!-- หน้าค้นหา -->
   <div id="pageSearch">
-  <div class="scan-box">
-    <label>สแกนหรือพิมพ์บาร์โค้ด</label>
-    <div class="input-row">
-      <input type="text" id="barcode" placeholder="บาร์โค้ด หรือ รหัส P-xxxx"
-             autocomplete="off" enterkeyhint="search">
-      <button class="btn" onclick="search()">ค้นหา</button>
+    <div class="header">
+      <h1>เช็คสต็อก</h1>
+      <div class="sub" id="lastUpdate" onclick="refreshData()">กำลังโหลด...</div>
     </div>
-    <button class="btn-cam" onclick="toggleCamera()">
-      <span id="camLabel">เปิดกล้องสแกน</span>
-    </button>
-    <button class="btn-refresh" onclick="refreshStatus(true)">
-      โหลดข้อมูลใหม่
-    </button>
-    <div id="browserTip" style="display:none; margin-top:10px; background:#e7f0fb; border-radius:10px; padding:14px; font-size:13px; line-height:1.7; color:#1a4971;">
-      <b>กล้องสแกนใช้ได้เฉพาะใน Safari</b><br>
-      คุณกำลังเปิดด้วย Chrome ซึ่ง iPhone ไม่อนุญาตให้ใช้กล้องในหน้าเว็บ<br>
-      <b>วิธีเปิดใน Safari:</b> แตะปุ่มด้านล่างเพื่อก๊อปลิงก์ แล้ววางใน Safari<br>
-      <button class="btn-refresh" style="margin-top:8px;" onclick="copyLink()">ก๊อปลิงก์หน้านี้</button>
-      <span style="display:block;margin-top:6px;color:#2c5c8a;">หรือพิมพ์เลขบาร์โค้ด / ใช้เครื่องยิงบาร์โค้ดในช่องด้านบนก็ได้</span>
-    </div>
-    <div id="reader"></div>
-    <div id="camHelp" style="display:none; margin-top:12px; background:#faeeda; border-radius:10px; padding:14px; font-size:13px; line-height:1.7; color:#633806;">
-      <b>กล้องยังไม่ได้รับอนุญาต</b><br>
-      วิธีเปิด (iPhone/Safari):<br>
-      1. แตะไอคอน <b>aA</b> ซ้ายบนของช่องเว็บ<br>
-      2. เลือก <b>การตั้งค่าเว็บไซต์</b><br>
-      3. ตั้ง <b>กล้อง</b> เป็น <b>อนุญาต</b><br>
-      4. รีเฟรชหน้า แล้วกดเปิดกล้องอีกครั้ง<br>
-      <span style="color:#854f0b;">หรือพิมพ์เลขบาร์โค้ดในช่องด้านบนแทนก็ได้</span>
-    </div>
-    <div id="iframeHelp" style="display:none; margin-top:12px; background:#e7f0fb; border-radius:10px; padding:14px; font-size:13px; line-height:1.7; color:#1a4971;">
-      <b>ต้องเปิดหน้านี้แบบเต็มจอก่อน</b><br>
-      กล้องใช้ไม่ได้เพราะหน้านี้เปิดอยู่ในกรอบซ้อน (ของ Google)<br>
-      แตะปุ่มด้านล่างเพื่อเปิดแบบเต็มจอ แล้วกดเปิดกล้องอีกครั้ง<br>
-      <button class="btn-refresh" style="margin-top:8px; background:#1d9e75; color:#fff;" onclick="openFullTab()">เปิดแบบเต็มจอเพื่อใช้กล้อง</button>
-      <span style="display:block;margin-top:6px;color:#2c5c8a;">หรือพิมพ์เลขบาร์โค้ด / ใช้เครื่องยิงบาร์โค้ดก็ได้</span>
-    </div>
-  </div>
-
-  <div class="loading" id="loading">กำลังค้นหา...</div>
-
-  <div class="notfound" id="notfound">
-    ไม่พบสินค้ารหัสนี้ในระบบ<br>
-    <span style="font-weight:400;font-size:13px">ลองตรวจว่าอัปเดตข้อมูลล่าสุดแล้วหรือยัง</span>
-  </div>
-
-  <div class="result" id="result">
-    <div class="card">
-      <div class="pname" id="rName"></div>
-      <div class="pcode" id="rCode"></div>
-      <span class="total" id="rTotal"></span>
-
-      <div class="lot-title">รายละเอียดแต่ละ lot <span style="font-weight:400;color:#999;">(แตะเพื่อแก้)</span></div>
-      <div id="rLots"></div>
-
-      <button class="btn-audit" onclick="openAddLot()" id="addLotBtn">+ เพิ่ม lot ใหม่ที่ระบบไม่มี</button>
-
-      <div class="audit-form" id="auditForm">
-        <div class="af-title" id="afTitle">ตรวจนับจริง (ไม่แก้ POS)</div>
-
-        <label class="af-label" id="afQtyLabel">จำนวนนับจริง</label>
-        <input type="number" id="afQty" class="af-input" inputmode="numeric" placeholder="เช่น 12">
-
-        <label class="af-label" id="afLotLabel">Lot จริง (ถ้าต่างจากระบบ)</label>
-        <input type="text" id="afLot" class="af-input" placeholder="เว้นว่างถ้าตรงกับระบบ">
-
-        <label class="af-label">วันหมดอายุจริง (ถ้าต่างจากระบบ)</label>
-        <input type="text" id="afExp" class="af-input" placeholder="วว/ดด/ปปปป">
-
-        <label class="af-label">หมายเหตุ</label>
-        <input type="text" id="afNote" class="af-input" placeholder="เช่น พบของชำรุด / วางผิดชั้น">
-
-        <div class="af-row">
-          <button class="btn-save" onclick="saveAudit()">บันทึก</button>
-          <button class="btn-cancel" onclick="closeAudit()">ยกเลิก</button>
+    <div class="card top">
+      <div class="pad">
+        <div class="search-row">
+          <input type="text" id="barcode" placeholder="บาร์โค้ด / รหัส P-xxxx" autocomplete="off" enterkeyhint="search">
+          <button class="btn-find" onclick="search()" aria-label="ค้นหา">&#128269;</button>
         </div>
-        <div class="af-ok" id="afOk">บันทึกเรียบร้อยแล้ว ✓</div>
+        <button class="btn-scan" onclick="toggleCamera()" id="scanBtn">
+          <span id="camLabel">&#128247; สแกนบาร์โค้ด</span>
+        </button>
+        <div id="reader"></div>
+        <div class="tip tip-blue" id="browserTip" style="display:none;">
+          <b>กล้องสแกนใช้ได้เฉพาะใน Safari</b><br>
+          คุณเปิดด้วย Chrome ซึ่ง iPhone ไม่ให้ใช้กล้องในเว็บ<br>
+          <button class="btn-add" style="margin-top:8px;" onclick="copyLink()">ก๊อปลิงก์ไปเปิดใน Safari</button>
+          หรือพิมพ์บาร์โค้ด / ใช้เครื่องยิงก็ได้
+        </div>
+        <div class="tip tip-amber" id="camHelp" style="display:none;">
+          <b>กล้องยังไม่ได้รับอนุญาต</b><br>
+          ไปที่ ตั้งค่า > Safari > กล้อง > อนุญาต แล้วเปิดหน้านี้ใหม่<br>
+          หรือพิมพ์บาร์โค้ดในช่องด้านบนแทนก็ได้
+        </div>
       </div>
     </div>
+
+    <div class="loading" id="loading" style="display:none;">กำลังค้นหา...</div>
+    <div class="card" id="notfound" style="display:none;">
+      <div class="pad" style="text-align:center; color:#a32d2d; font-weight:600;">
+        ไม่พบสินค้ารหัสนี้<br>
+        <span style="font-weight:400; font-size:13px; color:#888;">ลองกดโหลดข้อมูลใหม่ (แตะแถบเวลาด้านบน)</span>
+      </div>
+    </div>
+
+    <div class="card" id="result" style="display:none;">
+      <div class="pad">
+        <div class="pname" id="rName"></div>
+        <div class="chips">
+          <span class="chip chip-gray" id="rCode"></span>
+          <span class="chip chip-price" id="rPrice" style="display:none;"></span>
+          <span class="chip chip-green" id="rTotal"></span>
+        </div>
+        <div class="hint">แตะที่ lot เพื่อแก้ไข</div>
+        <div id="rLots"></div>
+        <button class="btn-add" onclick="openAddLot()">+ เพิ่ม lot ใหม่</button>
+      </div>
+    </div>
+
+    <div class="foot">ระบบเช็คสต็อก • TEENOI PHARMACY</div>
   </div>
 
-  <div class="foot">ระบบเช็คสต็อก • TEENOI PHARMACY</div>
-  </div><!-- /pageSearch -->
-
+  <!-- หน้าสรุป -->
   <div id="pageSummary" style="display:none;">
-    <div class="sum-head">
-      <div class="sum-tabs">
-        <button class="sum-tab sum-tab-active" id="stPending" onclick="filterAudit('pending')">ยังไม่แก้</button>
-        <button class="sum-tab" id="stFixed" onclick="filterAudit('fixed')">แก้แล้ว</button>
-        <button class="sum-tab" id="stAll" onclick="filterAudit('all')">ทั้งหมด</button>
-      </div>
-      <button class="btn-refresh" onclick="loadAudit()">โหลดรายการใหม่</button>
+    <div class="sum-tabs">
+      <button class="sum-tab active" id="stPending" onclick="filterAudit('pending')">ยังไม่แก้</button>
+      <button class="sum-tab" id="stFixed" onclick="filterAudit('fixed')">แก้แล้ว</button>
+      <button class="sum-tab" id="stAll" onclick="filterAudit('all')">ทั้งหมด</button>
     </div>
+    <button class="btn-add" onclick="loadAudit()" style="margin-bottom:10px;">โหลดรายการใหม่</button>
     <div class="loading" id="sumLoading" style="display:none;">กำลังโหลด...</div>
-    <div id="sumEmpty" class="sum-empty" style="display:none;">ยังไม่มีรายการตรวจนับ</div>
+    <div class="empty" id="sumEmpty" style="display:none;">ยังไม่มีรายการตรวจนับ</div>
     <div id="sumList"></div>
     <div class="foot">ระบบเช็คสต็อก • TEENOI PHARMACY</div>
-  </div><!-- /pageSummary -->
+  </div>
 </div>
 
-<!-- ตัวอ่านบาร์โค้ดจากกล้อง -->
+<!-- ฟอร์มแก้ไข (bottom sheet) -->
+<div class="sheet" id="sheet">
+  <div class="sheet-inner">
+    <div class="sheet-head">
+      <div class="sheet-title" id="afTitle">แก้ไข lot</div>
+      <button class="btn-x" onclick="closeSheet()">&times;</button>
+    </div>
+    <div class="sheet-lot" id="afLotName">-</div>
+
+    <button class="btn-match" id="btnMatch" onclick="matchSystem()">&#10003; ตรงกับระบบ</button>
+    <div class="or-line" id="orLine">— หรือแก้ไขด้านล่าง —</div>
+
+    <label class="flabel" id="afQtyLabel">จำนวนนับจริง</label>
+    <div class="qty-row">
+      <button class="qty-btn" onclick="stepQty(-1)">&minus;</button>
+      <input type="number" id="afQty" inputmode="numeric" value="0">
+      <button class="qty-btn" onclick="stepQty(1)">+</button>
+    </div>
+    <div class="unit-row" id="unitRow"></div>
+
+    <label class="flabel">วันหมดอายุ</label>
+    <input type="date" id="afExp">
+
+    <button class="btn-save" onclick="saveAudit(false)">บันทึก</button>
+    <div class="save-ok" id="afOk">บันทึกเรียบร้อยแล้ว &#10003;</div>
+  </div>
+</div>
+
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<!-- ตัวสร้างภาพบาร์โค้ด -->
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script>
-  // ===== ตั้งค่า: ใส่ลิงก์ Web App ของคุณตรงนี้ (ลงท้าย /exec) =====
+  // ===== ตั้งค่า: ลิงก์ Web App =====
   var API_URL = "https://script.google.com/macros/s/AKfycbxQld7PExhL_sdjyxBx-4rcNUYh79F9dE4otMrzv9BB20pIvC_J_rhVBBOEMU1XGbbupg/exec";
-  // ================================================================
+  // ==================================
 
-  var html5QrScanner = null;
-  var cameraOn = false;
-  var currentProduct = null;  // เก็บข้อมูลสินค้าที่กำลังดูอยู่ ไว้ใช้ตอนบันทึกตรวจนับ
-  var editingLot = null;      // lot ที่กำลังแก้ (edit) หรือโหมดเพิ่ม (add)
+  var CACHE = { stock: [], barcodes: [], prices: {}, loaded: false };
+  var html5QrScanner = null, cameraOn = false;
+  var currentProduct = null, editingLot = null, selUnit = 1;
+  var auditData = [], auditFilter = 'pending';
 
-  // โหลด/รีเฟรชเวลาอัปเดตล่าสุด (เรียกได้หลายครั้ง)
-  function refreshStatus(showToast) {
+  // ---------- โหลดข้อมูลทั้งหมดเก็บใน cache ----------
+  function refreshData() {
     var el = document.getElementById('lastUpdate');
-    if (showToast) el.textContent = 'กำลังโหลด...';
-    fetch(API_URL + '?action=status')
+    el.textContent = 'กำลังโหลดข้อมูล...';
+    fetch(API_URL + '?action=allData')
       .then(function(r){ return r.json(); })
-      .then(function(res){
-        var t = res.lastUpdate;
-        if (t) {
-          var d = new Date(t);
-          el.textContent = 'อัปเดตล่าสุด: ' + d.toLocaleString('th-TH') + ' (แตะเพื่อรีเฟรช)';
+      .then(function(d){
+        CACHE.stock = d.stock || [];
+        CACHE.barcodes = d.barcodes || [];
+        CACHE.prices = d.prices || {};
+        CACHE.loaded = true;
+        if (d.lastUpdate) {
+          var dt = new Date(d.lastUpdate);
+          el.textContent = 'อัปเดต ' + dt.toLocaleString('th-TH') + ' • แตะโหลดใหม่';
         } else {
-          el.textContent = 'ยังไม่มีข้อมูล (แตะเพื่อรีเฟรช)';
+          el.textContent = 'ยังไม่มีข้อมูล • แตะโหลดใหม่';
         }
       })
-      .catch(function(){ el.textContent = 'เชื่อมต่อข้อมูลไม่ได้ (แตะเพื่อลองใหม่)'; });
+      .catch(function(){ el.textContent = 'โหลดข้อมูลไม่ได้ • แตะลองใหม่'; });
   }
-  refreshStatus(false);
 
-  // กด Enter ในช่องบาร์โค้ด
-  document.getElementById('barcode').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') search();
-  });
-
-  // ตรวจเบราว์เซอร์: Chrome/Firefox บน iOS เปิดกล้องใน iframe ไม่ได้
-  (function detectBrowser() {
-    var ua = navigator.userAgent;
-    var isIOS = /iPad|iPhone|iPod/.test(ua);
-    // CriOS = Chrome บน iOS, FxiOS = Firefox บน iOS, EdgiOS = Edge บน iOS
-    var isThirdPartyIOS = /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
-
-    // เฉพาะ Chrome/Firefox บน iPhone เท่านั้นที่กล้องใช้ไม่ได้ (Apple ล็อกระดับ OS)
-    // Android Chrome และเบราว์เซอร์อื่นๆ ใช้กล้องได้ตามปกติ
-    if (isIOS && isThirdPartyIOS) {
-      var camBtn = document.querySelector('.btn-cam');
-      if (camBtn) camBtn.style.display = 'none';
-      var tip = document.getElementById('browserTip');
-      if (tip) tip.style.display = 'block';
-    }
-
-  })();
-
+  // ---------- ค้นหาจาก cache (ขึ้นทันที) ----------
   function search() {
     var bc = document.getElementById('barcode').value.trim();
     if (!bc) return;
-
-    refreshStatus(false);  // อัปเดตเวลาล่าสุดทุกครั้งที่ค้นหา
-
     document.getElementById('result').style.display = 'none';
     document.getElementById('notfound').style.display = 'none';
-    document.getElementById('loading').style.display = 'block';
 
-    fetch(API_URL + '?action=lookup&q=' + encodeURIComponent(bc))
-      .then(function(r){ return r.json(); })
-      .then(showResult)
-      .catch(function(err){
-        document.getElementById('loading').style.display = 'none';
-        alert('เกิดข้อผิดพลาด: ' + err);
-      });
+    if (!CACHE.loaded) {
+      document.getElementById('loading').style.display = 'block';
+      fetch(API_URL + '?action=allData')
+        .then(function(r){ return r.json(); })
+        .then(function(d){
+          CACHE.stock = d.stock || []; CACHE.barcodes = d.barcodes || []; CACHE.prices = d.prices || {}; CACHE.loaded = true;
+          document.getElementById('loading').style.display = 'none';
+          doLookup(bc);
+        })
+        .catch(function(){ document.getElementById('loading').style.display = 'none'; alert('โหลดข้อมูลไม่ได้'); });
+    } else {
+      doLookup(bc);
+    }
   }
 
-  function showResult(data) {
-    document.getElementById('loading').style.display = 'none';
+  function doLookup(key) {
+    key = String(key).trim();
+    var productCode = '', unitMult = 1;
 
-    if (!data.found) {
+    // หา productCode จากบาร์โค้ด
+    for (var b = 0; b < CACHE.barcodes.length; b++) {
+      var br = CACHE.barcodes[b];
+      if (br.b1 === key || br.b2 === key || br.b3 === key) { productCode = br.code; break; }
+    }
+    if (!productCode) productCode = key;
+
+    // หาตัวคูณหน่วยใหญ่สุด
+    for (var c = 0; c < CACHE.barcodes.length; c++) {
+      if (CACHE.barcodes[c].code === productCode && CACHE.barcodes[c].mult > unitMult) {
+        unitMult = CACHE.barcodes[c].mult;
+      }
+    }
+
+    // ดึงทุก lot
+    var lots = [], name = '', unitName = 'หน่วย';
+    for (var i = 0; i < CACHE.stock.length; i++) {
+      var s = CACHE.stock[i];
+      if (s.code === productCode) {
+        name = s.name; if (s.unit) unitName = s.unit;
+        lots.push({ lot: s.lot, qty: s.qty, mfg: s.mfg, exp: s.exp });
+      }
+    }
+
+    if (lots.length === 0) {
       document.getElementById('notfound').style.display = 'block';
       return;
     }
 
-    document.getElementById('rName').textContent = data.name;
-    document.getElementById('rCode').textContent = 'รหัส: ' + (data.productCode || '-') + '  •  บาร์โค้ด: ' + data.barcode;
-    document.getElementById('rTotal').textContent = 'คงเหลือรวม: ' + data.totalQty + ' ' + (data.unitName || 'หน่วย');
-
-    var html = '';
-    var today = new Date();
-    var soon = new Date();
-    soon.setMonth(soon.getMonth() + 3); // ใกล้หมดอายุ = ภายใน 3 เดือน
-
-    for (var i = 0; i < data.lots.length; i++) {
-      var lot = data.lots[i];
-      var expClass = '';
-      var badge = '';
-
-      if (lot.exp) {
-        var parts = lot.exp.split('/'); // dd/mm/yyyy
-        var expDate = new Date(parts[2], parts[1] - 1, parts[0]);
-        if (expDate < today) {
-          expClass = 'exp-warn';
-          badge = '<span class="badge badge-red">หมดอายุแล้ว</span>';
-        } else if (expDate < soon) {
-          expClass = 'exp-soon';
-          badge = '<span class="badge badge-amber">ใกล้หมดอายุ</span>';
-        }
-      }
-
-      html += '<div class="lot" onclick="openEditLot(' + i + ')" style="cursor:pointer;">'
-        + '<div class="lot-info">'
-        + '<div class="lot-num">' + (lot.lot || '-') + badge + '</div>'
-        + '<div class="lot-dates ' + expClass + '">'
-        + (lot.mfg ? 'ผลิต: ' + lot.mfg + '  ' : '')
-        + (lot.exp ? 'หมดอายุ: ' + lot.exp : (lot.mfg ? '' : 'ไม่มีข้อมูลวันที่'))
-        + '</div>'
-        + '</div>'
-        + '<div class="lot-qty">' + (lot.unitText || lot.qty) + '</div>'
-        + '</div>';
+    var total = 0;
+    for (var j = 0; j < lots.length; j++) {
+      total += lots[j].qty;
+      lots[j].unitText = unitText(lots[j].qty, unitMult, unitName);
     }
 
-    document.getElementById('rLots').innerHTML = html;
-    document.getElementById('result').style.display = 'block';
-
-    // เก็บข้อมูลไว้ใช้ตอนบันทึกตรวจนับ
-    currentProduct = {
-      barcode: data.barcode,
-      productCode: data.productCode || '',
-      name: data.name,
-      totalQty: data.totalQty,
-      unitName: data.unitName || 'หน่วย',
-      lots: data.lots || []
-    };
-    editingLot = null;
-    document.getElementById('auditForm').style.display = 'none';
-    document.getElementById('afOk').style.display = 'none';
+    var price = CACHE.prices[productCode];
+    currentProduct = { barcode: key, productCode: productCode, name: name, unitName: unitName, unitMult: unitMult, lots: lots, price: price };
+    showResult(name, productCode, total, unitName, lots, price);
   }
 
-  // แก้ไข lot ที่มีอยู่ - เติมค่าเดิมของ lot นั้นให้
-  function openEditLot(idx) {
-    if (!currentProduct) return;
+  function unitText(pieces, mult, uName) {
+    if (mult <= 1) return pieces + ' ' + uName;
+    var boxes = Math.floor(pieces / mult), rem = pieces % mult;
+    var base = pieces + ' ' + uName;
+    if (boxes <= 0) return base;
+    var inner = boxes + ' กล่อง';
+    if (rem > 0) inner += ' ' + rem + ' ' + uName;
+    return base + '|' + inner;
+  }
+
+  function showResult(name, code, total, uName, lots, price) {
+    var parts = name.split('(');
+    document.getElementById('rName').innerHTML = parts[0].trim() +
+      (parts[1] ? '<br><span class="psub">' + parts[1].replace(')','').trim() + '</span>' : '');
+    document.getElementById('rCode').textContent = code;
+    document.getElementById('rTotal').textContent = 'รวม ' + total + ' ' + uName;
+    var priceEl = document.getElementById('rPrice');
+    if (price && price > 0) {
+      priceEl.textContent = '฿' + price.toFixed(2) + ' /' + uName;
+      priceEl.style.display = 'inline-block';
+    } else {
+      priceEl.style.display = 'none';
+    }
+
+    var today = new Date(), soon = new Date(); soon.setMonth(soon.getMonth() + 3);
+    var html = '';
+    for (var i = 0; i < lots.length; i++) {
+      var lot = lots[i], cls = '', dcls = '', badge = '';
+      if (lot.exp) {
+        var p = lot.exp.split('/'), ed = new Date(p[2], p[1]-1, p[0]);
+        if (ed < today) { cls = 'expired'; dcls = 'expired'; badge = '<span class="badge badge-red">หมดอายุ</span>'; }
+        else if (ed < soon) { cls = 'warn'; dcls = 'warn'; badge = '<span class="badge badge-amber">ใกล้หมดอายุ</span>'; }
+      }
+      var ut = (lot.unitText || (lot.qty + ' ' + uName)).split('|');
+      html += '<div class="lot ' + cls + '" onclick="openEdit(' + i + ')">'
+        + '<div><div class="lot-num">' + (lot.lot || '-') + badge + '</div>'
+        + '<div class="lot-dates ' + dcls + '">' + (lot.exp ? 'หมดอายุ ' + lot.exp : 'ไม่มีวันหมดอายุ') + '</div></div>'
+        + '<div class="lot-qty">' + ut[0] + (ut[1] ? '<small>' + ut[1] + '</small>' : '') + '</div>'
+        + '</div>';
+    }
+    document.getElementById('rLots').innerHTML = html;
+    document.getElementById('result').style.display = 'block';
+  }
+
+  // ---------- ฟอร์มแก้ไข ----------
+  function buildUnitRow() {
+    var row = document.getElementById('unitRow');
+    var uName = currentProduct.unitName, mult = currentProduct.unitMult;
+    var h = '<button class="unit-btn active" onclick="pickUnit(this,1)">' + uName + '</button>';
+    if (mult > 1) h += '<button class="unit-btn" onclick="pickUnit(this,' + mult + ')">กล่อง (×' + mult + ')</button>';
+    row.innerHTML = h;
+    selUnit = 1;
+  }
+  function pickUnit(btn, mult) {
+    selUnit = mult;
+    var btns = document.querySelectorAll('#unitRow .unit-btn');
+    for (var i = 0; i < btns.length; i++) btns[i].classList.remove('active');
+    btn.classList.add('active');
+  }
+  function stepQty(n) {
+    var el = document.getElementById('afQty');
+    var v = (parseInt(el.value) || 0) + n;
+    if (v < 0) v = 0;
+    el.value = v;
+  }
+  function toDateInput(t) {
+    if (!t) return '';
+    var p = t.split('/'); if (p.length !== 3) return '';
+    return p[2] + '-' + p[1] + '-' + p[0];
+  }
+  function fromDateInput(v) {
+    if (!v) return '';
+    var p = v.split('-'); if (p.length !== 3) return v;
+    return p[2] + '/' + p[1] + '/' + p[0];
+  }
+
+  function openEdit(idx) {
     var lot = currentProduct.lots[idx];
     if (!lot) return;
     editingLot = { mode: 'edit', lot: lot };
-
-    document.getElementById('afTitle').textContent = 'แก้ไข lot: ' + (lot.lot || '-');
-    document.getElementById('afQtyLabel').textContent = 'จำนวนนับจริง (ระบบมี ' + lot.qty + ')';
-    document.getElementById('afLotLabel').textContent = 'Lot จริง (ถ้าต่างจากระบบ)';
-
-    document.getElementById('afQty').value = '';
-    document.getElementById('afLot').value = '';
-    document.getElementById('afExp').value = '';
-    document.getElementById('afNote').value = '';
+    document.getElementById('afTitle').textContent = 'แก้ไข lot';
+    document.getElementById('afLotName').textContent = lot.lot || '-';
+    document.getElementById('afQtyLabel').textContent = 'จำนวนนับจริง (ระบบมี ' + lot.qty + ' ' + currentProduct.unitName + ')';
+    document.getElementById('btnMatch').style.display = 'flex';
+    document.getElementById('btnMatch').innerHTML = '&#10003; ตรงกับระบบ (' + lot.qty + ' ' + currentProduct.unitName + ')';
+    document.getElementById('orLine').style.display = 'block';
+    buildUnitRow();
+    document.getElementById('afQty').value = lot.qty;    // ★ ใส่ค่าจากระบบไว้ให้
+    document.getElementById('afExp').value = toDateInput(lot.exp);
     document.getElementById('afOk').style.display = 'none';
-    document.getElementById('auditForm').style.display = 'block';
-    document.getElementById('auditForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    openSheet();
   }
 
-  // เพิ่ม lot ใหม่ที่ระบบไม่มี
   function openAddLot() {
-    if (!currentProduct) return;
-    editingLot = { mode: 'add', lot: null };
-
-    document.getElementById('afTitle').textContent = 'เพิ่ม lot ใหม่ (ไม่แก้ POS)';
+    var newLot = prompt('กรอกเลข Lot ใหม่:');
+    if (newLot === null) return;
+    newLot = newLot.trim();
+    if (!newLot) { alert('กรุณากรอกเลข Lot'); return; }
+    editingLot = { mode: 'add', lot: null, newLot: newLot };
+    document.getElementById('afTitle').textContent = 'เพิ่ม lot ใหม่';
+    document.getElementById('afLotName').textContent = newLot;
     document.getElementById('afQtyLabel').textContent = 'จำนวนที่นับได้';
-    document.getElementById('afLotLabel').textContent = 'Lot (เลข lot ใหม่)';
-
-    document.getElementById('afQty').value = '';
-    document.getElementById('afLot').value = '';
+    document.getElementById('btnMatch').style.display = 'none';
+    document.getElementById('orLine').style.display = 'none';
+    buildUnitRow();
+    document.getElementById('afQty').value = 0;
     document.getElementById('afExp').value = '';
-    document.getElementById('afNote').value = '';
     document.getElementById('afOk').style.display = 'none';
-    document.getElementById('auditForm').style.display = 'block';
-    document.getElementById('auditForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    openSheet();
   }
 
-  function closeAudit() {
-    document.getElementById('auditForm').style.display = 'none';
-    editingLot = null;
+  function openSheet() { document.getElementById('sheet').classList.add('show'); }
+  function closeSheet() { document.getElementById('sheet').classList.remove('show'); editingLot = null; }
+
+  function matchSystem() {
+    if (!editingLot || editingLot.mode !== 'edit') return;
+    document.getElementById('afQty').value = editingLot.lot.qty;
+    selUnit = 1;
+    saveAudit(true);
   }
 
-  function saveAudit() {
+  function saveAudit(isMatch) {
     if (!currentProduct || !editingLot) return;
-
     var isAdd = (editingLot.mode === 'add');
     var lot = editingLot.lot || {};
-    var qtyVal = document.getElementById('afQty').value.trim();
-    var lotVal = document.getElementById('afLot').value.trim();
-    var expVal = document.getElementById('afExp').value.trim();
-    var noteVal = document.getElementById('afNote').value.trim();
-
-    if (isAdd) {
-      // เพิ่ม lot ใหม่ ต้องมี lot + จำนวน
-      if (!lotVal || !qtyVal) {
-        alert('กรุณากรอก Lot และจำนวน');
-        return;
-      }
-    } else {
-      // แก้ lot เดิม ต้องกรอกอย่างน้อย 1 ช่อง
-      if (!qtyVal && !lotVal && !expVal && !noteVal) {
-        alert('กรุณากรอกอย่างน้อย 1 ช่อง');
-        return;
-      }
-    }
+    var qtyRaw = document.getElementById('afQty').value.trim();
+    var expVal = fromDateInput(document.getElementById('afExp').value);
+    if (!qtyRaw) { alert('กรุณากรอกจำนวน'); return; }
+    var realQty = Number(qtyRaw) * selUnit;
 
     var rec = {
-      barcode: currentProduct.barcode,
-      productCode: currentProduct.productCode,
-      name: currentProduct.name,
-      sysQty: isAdd ? 0 : (lot.qty || 0),
-      realQty: qtyVal,
-      sysLot: isAdd ? '(lot ใหม่)' : (lot.lot || ''),
-      realLot: lotVal,
-      sysExp: isAdd ? '' : (lot.exp || ''),
-      realExp: expVal,
-      note: (isAdd ? '[เพิ่ม lot ใหม่] ' : '') + noteVal
+      barcode: currentProduct.barcode, productCode: currentProduct.productCode, name: currentProduct.name,
+      sysQty: isAdd ? 0 : (lot.qty || 0), realQty: realQty,
+      sysLot: isAdd ? '(lot ใหม่)' : (lot.lot || ''), realLot: isAdd ? editingLot.newLot : '',
+      sysExp: isAdd ? '' : (lot.exp || ''), realExp: expVal,
+      note: isAdd ? '[เพิ่ม lot ใหม่]' : (isMatch ? '[ตรงกับระบบ]' : '')
     };
 
     var btn = document.querySelector('.btn-save');
-    btn.textContent = 'กำลังบันทึก...';
-    btn.disabled = true;
-
+    btn.textContent = 'กำลังบันทึก...'; btn.disabled = true;
     fetch(API_URL + '?action=saveAudit&data=' + encodeURIComponent(JSON.stringify(rec)))
       .then(function(r){ return r.json(); })
       .then(function(res){
-        btn.textContent = 'บันทึก';
-        btn.disabled = false;
+        btn.textContent = 'บันทึก'; btn.disabled = false;
         if (res && res.ok) {
           document.getElementById('afOk').style.display = 'block';
-          setTimeout(closeAudit, 1200);
-        } else {
-          alert('บันทึกไม่สำเร็จ: ' + (res ? res.error : 'ไม่ทราบสาเหตุ'));
-        }
+          setTimeout(closeSheet, 1000);
+        } else { alert('บันทึกไม่สำเร็จ: ' + (res ? res.error : '')); }
       })
-      .catch(function(err){
-        btn.textContent = 'บันทึก';
-        btn.disabled = false;
-        alert('เกิดข้อผิดพลาด: ' + err);
-      });
+      .catch(function(err){ btn.textContent = 'บันทึก'; btn.disabled = false; alert('ผิดพลาด: ' + err); });
   }
 
+  // ---------- กล้อง ----------
   function toggleCamera() {
-    if (cameraOn) {
-      stopCamera();
-      return;
-    }
-    document.getElementById('camLabel').textContent = 'ปิดกล้อง';
+    if (cameraOn) { stopCamera(); return; }
+    document.getElementById('camLabel').innerHTML = '&#10005; ปิดกล้อง';
     cameraOn = true;
-
     html5QrScanner = new Html5Qrcode('reader', {
       formatsToSupport: [
-        Html5QrcodeSupportedFormats.EAN_13,
-        Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.CODE_128,
-        Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E,
-        Html5QrcodeSupportedFormats.CODE_39
+        Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E, Html5QrcodeSupportedFormats.CODE_39
       ],
       experimentalFeatures: { useBarCodeDetectorIfSupported: true }
     });
     html5QrScanner.start(
       { facingMode: 'environment' },
-      {
-        fps: 24,
-        qrbox: { width: 280, height: 170 },
-        aspectRatio: 1.777
-      },
-      function(decodedText) {
-        document.getElementById('barcode').value = decodedText;
+      { fps: 25, qrbox: { width: 260, height: 150 }, aspectRatio: 1.4 },
+      function(txt) {
+        document.getElementById('barcode').value = txt;
         stopCamera();
         search();
       },
-      function(err) {}
-    ).catch(function(err) {
-      var msg = String(err);
-      if (msg.indexOf('NotAllowed') >= 0 || msg.indexOf('denied') >= 0 || msg.indexOf('Permission') >= 0) {
-        showCamHelp();
-      } else if (msg.indexOf('NotFound') >= 0) {
-        alert('ไม่พบกล้องบนอุปกรณ์นี้ — ใช้วิธีพิมพ์บาร์โค้ดแทนได้ครับ');
-      } else {
-        alert('เปิดกล้องไม่ได้: ' + msg + '\n\nใช้วิธีพิมพ์บาร์โค้ดแทนได้ครับ');
-      }
+      function(){}
+    ).catch(function(err){
+      var m = String(err);
+      if (m.indexOf('NotAllowed') >= 0 || m.indexOf('denied') >= 0 || m.indexOf('Permission') >= 0) {
+        document.getElementById('camHelp').style.display = 'block';
+      } else if (m.indexOf('NotFound') >= 0) {
+        alert('ไม่พบกล้อง — พิมพ์บาร์โค้ดแทนได้ครับ');
+      } else { alert('เปิดกล้องไม่ได้: ' + m); }
       stopCamera();
     });
   }
-
-  function showIframeHelp() {
-    var box = document.getElementById('iframeHelp');
-    if (box) box.style.display = 'block';
-  }
-
-  // เปิดหน้านี้ในแท็บเต็ม (นอก iframe) เพื่อให้กล้องทำงาน
-  function openFullTab() {
-    var url = getTopUrl();
-    window.open(url, '_blank');
-  }
-
-  function getTopUrl() {
-    // พยายามหา URL จริงของหน้า (นอก iframe)
-    try {
-      if (document.referrer && document.referrer.indexOf('script.google') >= 0) {
-        return document.referrer;
-      }
-    } catch (e) {}
-    return window.location.href;
-  }
-
-  function showCamHelp() {
-    var box = document.getElementById('camHelp');
-    box.style.display = 'block';
-  }
-
-  function copyLink() {
-    var url = window.location.href;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(url).then(function() {
-        alert('ก๊อปลิงก์แล้ว! เปิด Safari แล้ววางลิงก์เพื่อใช้กล้องสแกน');
-      }).catch(function() {
-        prompt('ก๊อปลิงก์นี้ไปเปิดใน Safari:', url);
-      });
-    } else {
-      prompt('ก๊อปลิงก์นี้ไปเปิดใน Safari:', url);
-    }
-  }
-
   function stopCamera() {
     if (html5QrScanner) {
-      html5QrScanner.stop().then(function() {
-        html5QrScanner.clear();
-      }).catch(function(){});
+      html5QrScanner.stop().then(function(){ html5QrScanner.clear(); }).catch(function(){});
     }
-    document.getElementById('camLabel').textContent = 'เปิดกล้องสแกน';
+    document.getElementById('camLabel').innerHTML = '&#128247; สแกนบาร์โค้ด';
     cameraOn = false;
   }
-
-  // ============ หน้าสรุปการตรวจนับ ============
-  var auditData = [];
-  var auditFilter = 'pending';
-
-  function showPage(page) {
-    var isSearch = (page === 'search');
-    document.getElementById('pageSearch').style.display = isSearch ? 'block' : 'none';
-    document.getElementById('pageSummary').style.display = isSearch ? 'none' : 'block';
-    document.getElementById('tabSearch').className = isSearch ? 'tab tab-active' : 'tab';
-    document.getElementById('tabSummary').className = isSearch ? 'tab' : 'tab tab-active';
-    if (!isSearch) loadAudit();
+  function copyLink() {
+    var url = window.location.href;
+    if (navigator.clipboard) { navigator.clipboard.writeText(url).then(function(){ alert('ก๊อปลิงก์แล้ว เปิด Safari แล้ววาง'); }).catch(function(){ prompt('ก๊อปลิงก์:', url); }); }
+    else { prompt('ก๊อปลิงก์:', url); }
   }
 
+  // ---------- สลับหน้า + สรุป ----------
+  function showPage(page) {
+    var isS = (page === 'search');
+    document.getElementById('pageSearch').style.display = isS ? 'block' : 'none';
+    document.getElementById('pageSummary').style.display = isS ? 'none' : 'block';
+    document.getElementById('tabSearch').className = isS ? 'tab active' : 'tab';
+    document.getElementById('tabSummary').className = isS ? 'tab' : 'tab active';
+    if (!isS) loadAudit();
+  }
   function loadAudit() {
     document.getElementById('sumLoading').style.display = 'block';
     document.getElementById('sumEmpty').style.display = 'none';
     document.getElementById('sumList').innerHTML = '';
-
     fetch(API_URL + '?action=auditList')
       .then(function(r){ return r.json(); })
-      .then(function(list){
-        document.getElementById('sumLoading').style.display = 'none';
-        auditData = list || [];
-        renderAudit();
-      })
-      .catch(function(err){
-        document.getElementById('sumLoading').style.display = 'none';
-        alert('โหลดรายการไม่สำเร็จ: ' + err);
-      });
+      .then(function(list){ document.getElementById('sumLoading').style.display = 'none'; auditData = list || []; renderAudit(); })
+      .catch(function(err){ document.getElementById('sumLoading').style.display = 'none'; alert('โหลดไม่ได้: ' + err); });
   }
-
   function filterAudit(f) {
     auditFilter = f;
-    document.getElementById('stPending').className = (f === 'pending') ? 'sum-tab sum-tab-active' : 'sum-tab';
-    document.getElementById('stFixed').className = (f === 'fixed') ? 'sum-tab sum-tab-active' : 'sum-tab';
-    document.getElementById('stAll').className = (f === 'all') ? 'sum-tab sum-tab-active' : 'sum-tab';
+    document.getElementById('stPending').className = f==='pending' ? 'sum-tab active' : 'sum-tab';
+    document.getElementById('stFixed').className = f==='fixed' ? 'sum-tab active' : 'sum-tab';
+    document.getElementById('stAll').className = f==='all' ? 'sum-tab active' : 'sum-tab';
     renderAudit();
   }
-
-  function isFixed(item) {
-    return String(item.status || '').indexOf('แก้แล้ว') === 0;
-  }
-
+  function isFixed(it) { return String(it.status || '').indexOf('แก้แล้ว') === 0; }
   function renderAudit() {
-    var list = auditData.filter(function(it) {
+    var list = auditData.filter(function(it){
       if (auditFilter === 'pending') return !isFixed(it);
       if (auditFilter === 'fixed') return isFixed(it);
       return true;
     });
-
     var box = document.getElementById('sumList');
-    if (list.length === 0) {
-      box.innerHTML = '';
-      document.getElementById('sumEmpty').style.display = 'block';
-      return;
-    }
+    if (list.length === 0) { box.innerHTML = ''; document.getElementById('sumEmpty').style.display = 'block'; return; }
     document.getElementById('sumEmpty').style.display = 'none';
-
     var html = '';
     for (var i = 0; i < list.length; i++) {
-      var it = list[i];
-      var fixed = isFixed(it);
-      var diffTxt = '';
+      var it = list[i], fx = isFixed(it), diff = '';
       if (it.diff !== '' && it.diff != null) {
-        var cls = (Number(it.diff) >= 0) ? 'sum-diff-pos' : 'sum-diff-neg';
-        var sign = (Number(it.diff) > 0) ? '+' : '';
-        diffTxt = '<span class="' + cls + '">' + sign + it.diff + '</span>';
+        var cls = Number(it.diff) >= 0 ? 'diff-pos' : 'diff-neg';
+        var sign = Number(it.diff) > 0 ? '+' : '';
+        diff = '<span class="' + cls + '">' + sign + it.diff + '</span>';
       }
-
-      var bcId = 'bc_' + it.row;
-      html += '<div class="sum-card' + (fixed ? ' fixed' : '') + '">';
-      if (fixed) html += '<div class="badge-fixed">' + it.status + '</div>';
+      html += '<div class="sum-card' + (fx ? ' fixed' : '') + '">';
+      if (fx) html += '<div class="badge-fixed">' + it.status + '</div>';
       html += '<div class="sum-name">' + (it.name || '-') + '</div>';
-
-      if (it.barcode) {
-        html += '<svg class="sum-bc-img" id="' + bcId + '"></svg>';
-        html += '<div class="sum-bc-num">' + it.barcode + '</div>';
-      } else {
-        html += '<div class="sum-bc-num">ไม่มีบาร์โค้ด</div>';
-      }
-
+      if (it.barcode) { html += '<svg class="sum-bc" id="bc_' + it.row + '"></svg><div class="sum-bcnum">' + it.barcode + '</div>'; }
       html += '<div class="sum-grid">';
-      if (it.realQty !== '' && it.realQty != null)
-        html += 'จำนวน: ระบบ <b>' + it.sysQty + '</b> → นับจริง <b>' + it.realQty + '</b> (ส่วนต่าง ' + diffTxt + ')<br>';
-      if (it.realLot) html += 'Lot: ระบบ <b>' + (it.sysLot || '-') + '</b> → จริง <b>' + it.realLot + '</b><br>';
-      if (it.realExp) html += 'วันหมดอายุ: ระบบ <b>' + (it.sysExp || '-') + '</b> → จริง <b>' + it.realExp + '</b><br>';
-      if (it.note) html += 'หมายเหตุ: ' + it.note + '<br>';
-      html += '</div>';
-      html += '<div class="sum-time">ตรวจนับเมื่อ ' + it.time + '</div>';
-
-      if (!fixed) {
-        html += '<button class="btn-fixed" onclick="markFixed(' + it.row + ')">ติ๊กว่าแก้ที่ POS แล้ว</button>';
-      }
+      if (it.realQty !== '' && it.realQty != null) html += 'จำนวน: ระบบ <b>' + it.sysQty + '</b> → นับจริง <b>' + it.realQty + '</b> (ต่าง ' + diff + ')<br>';
+      if (it.realLot) html += 'Lot จริง: <b>' + it.realLot + '</b><br>';
+      if (it.realExp) html += 'วันหมดอายุ: <b>' + it.realExp + '</b><br>';
+      html += '</div><div class="sum-time">ตรวจนับ ' + it.time + '</div>';
+      if (!fx) html += '<button class="btn-fixed" onclick="markFixed(' + it.row + ')">ติ๊กว่าแก้ที่ POS แล้ว</button>';
       html += '</div>';
     }
     box.innerHTML = html;
-
-    // วาดภาพบาร์โค้ดหลังใส่ HTML แล้ว
     for (var j = 0; j < list.length; j++) {
-      var it2 = list[j];
-      if (!it2.barcode) continue;
-      try {
-        JsBarcode('#bc_' + it2.row, String(it2.barcode), {
-          format: 'CODE128', width: 1.6, height: 44, fontSize: 12, margin: 0
-        });
-      } catch (e) {}
+      if (!list[j].barcode) continue;
+      try { JsBarcode('#bc_' + list[j].row, String(list[j].barcode), { format:'CODE128', width:1.6, height:44, fontSize:12, margin:0 }); } catch(e){}
     }
   }
-
-  function markFixed(rowNum) {
-    if (!confirm('ยืนยันว่าแก้ที่ POS เรียบร้อยแล้ว?')) return;
-    fetch(API_URL + '?action=markFixed&row=' + rowNum)
+  function markFixed(row) {
+    if (!confirm('ยืนยันว่าแก้ที่ POS แล้ว?')) return;
+    fetch(API_URL + '?action=markFixed&row=' + row)
       .then(function(r){ return r.json(); })
-      .then(function(res){
-        if (res && res.ok) {
-          loadAudit();
-        } else {
-          alert('ทำเครื่องหมายไม่สำเร็จ: ' + (res ? res.error : ''));
-        }
-      })
+      .then(function(res){ if (res && res.ok) loadAudit(); else alert('ไม่สำเร็จ'); })
       .catch(function(err){ alert('ผิดพลาด: ' + err); });
   }
+
+  // ---------- เริ่มต้น ----------
+  document.getElementById('barcode').addEventListener('keydown', function(e){ if (e.key === 'Enter') search(); });
+  (function(){
+    var ua = navigator.userAgent;
+    if (/iPad|iPhone|iPod/.test(ua) && /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua)) {
+      document.getElementById('scanBtn').style.display = 'none';
+      document.getElementById('browserTip').style.display = 'block';
+    }
+  })();
+  refreshData();  // โหลด cache ตอนเปิดแอป
 </script>
 </body>
 </html>
