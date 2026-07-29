@@ -145,6 +145,7 @@
     <button class="tab active" id="tabDash" onclick="showPage('dash')">แดชบอร์ด</button>
     <button class="tab" id="tabSearch" onclick="showPage('search')">ค้นหา</button>
     <button class="tab" id="tabSummary" onclick="showPage('summary')">สรุป</button>
+    <button class="tab" id="tabLabels" onclick="showPage('labels')">ป้าย<span id="labelCount"></span></button>
   </div>
 
   <!-- หน้าแดชบอร์ด -->
@@ -176,15 +177,20 @@
       </div>
 
       <div style="display:flex; gap:10px; margin-bottom:10px;">
-        <div class="card" style="flex:1; margin:0; background:#faeeda;"><div class="pad">
+        <div class="card" style="flex:1; margin:0; background:#faeeda; cursor:pointer;" onclick="toggleExpList('near')"><div class="pad">
           <div style="font-size:24px; font-weight:700; color:#a5730f;" id="dNear">0</div>
-          <div style="font-size:12px; color:#a5730f;">ใกล้หมดอายุ (3 ด.)</div>
+          <div style="font-size:12px; color:#a5730f;">ใกล้หมดอายุ (3 ด.) ▾</div>
         </div></div>
-        <div class="card" style="flex:1; margin:0; background:#faece7;"><div class="pad">
+        <div class="card" style="flex:1; margin:0; background:#faece7; cursor:pointer;" onclick="toggleExpList('expired')"><div class="pad">
           <div style="font-size:24px; font-weight:700; color:#b3421f;" id="dExpired">0</div>
-          <div style="font-size:12px; color:#b3421f;">หมดอายุแล้ว</div>
+          <div style="font-size:12px; color:#b3421f;">หมดอายุแล้ว ▾</div>
         </div></div>
       </div>
+
+      <div class="card" id="expListCard" style="display:none;"><div class="pad">
+        <div style="font-size:14px; font-weight:600; margin-bottom:8px;" id="expListTitle"></div>
+        <div id="expList"></div>
+      </div></div>
 
       <div class="card" id="dUrgentCard" style="display:none;"><div class="pad">
         <div style="font-size:14px; font-weight:600; margin-bottom:8px;">ต้องรีบจัดการ</div>
@@ -248,6 +254,7 @@
         <div class="hint">แตะที่ lot เพื่อแก้ไข</div>
         <div id="rLots"></div>
         <button class="btn-add" onclick="openAddLot()">+ เพิ่ม lot ใหม่</button>
+        <button class="btn-scan" style="margin-top:8px; height:46px; font-size:15px; background:#c47d1a;" onclick="addToLabels()" id="addLabelBtn">🏷️ เพิ่มลงป้ายราคา</button>
       </div>
     </div>
 
@@ -265,6 +272,20 @@
     <div class="loading" id="sumLoading" style="display:none;">กำลังโหลด...</div>
     <div class="empty" id="sumEmpty" style="display:none;">ยังไม่มีรายการตรวจนับ</div>
     <div id="sumList"></div>
+    <div class="foot">ระบบเช็คสต็อก • TEENOI PHARMACY</div>
+  </div>
+
+  <!-- หน้าป้ายราคา -->
+  <div id="pageLabels" style="display:none;">
+    <div class="card"><div class="pad">
+      <div style="font-size:15px; font-weight:600; margin-bottom:4px;">ป้ายราคาที่เลือกไว้</div>
+      <div style="font-size:12px; color:#999;" id="labelInfo">ยังไม่มีป้าย</div>
+    </div></div>
+    <div id="labelList"></div>
+    <div id="labelActions" style="display:none;">
+      <button class="btn-scan" onclick="printLabels()" style="margin-bottom:8px;">📄 ดาวน์โหลด PDF ป้ายราคา</button>
+      <button class="btn-add" onclick="clearLabels()" style="color:#c0392b; border-color:#e0a0a0;">ล้างรายการทั้งหมด</button>
+    </div>
     <div class="foot">ระบบเช็คสต็อก • TEENOI PHARMACY</div>
   </div>
 </div>
@@ -299,6 +320,7 @@
 
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script>
   // ===== ตั้งค่า: ลิงก์ Web App =====
   var API_URL = "https://script.google.com/macros/s/AKfycbxQld7PExhL_sdjyxBx-4rcNUYh79F9dE4otMrzv9BB20pIvC_J_rhVBBOEMU1XGbbupg/exec";
@@ -542,6 +564,7 @@
         btn.textContent = 'บันทึก'; btn.disabled = false;
         if (res && res.ok) {
           document.getElementById('afOk').style.display = 'block';
+          dashData = null;  // ล้าง cache แดชบอร์ด ให้คำนวณใหม่ครั้งหน้า
           setTimeout(closeSheet, 1000);
         } else { alert('บันทึกไม่สำเร็จ: ' + (res ? res.error : '')); }
       })
@@ -572,7 +595,12 @@
       function(){}
     ).catch(function(err){
       var m = String(err);
-      if (m.indexOf('NotAllowed') >= 0 || m.indexOf('denied') >= 0 || m.indexOf('Permission') >= 0) {
+      var ua = navigator.userAgent;
+      var isIOSChrome = /iPad|iPhone|iPod/.test(ua) && /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
+      if (isIOSChrome) {
+        // Chrome บน iPhone เปิดกล้องไม่ได้ (Apple ล็อก) -> แนะนำ Safari
+        document.getElementById('browserTip').style.display = 'block';
+      } else if (m.indexOf('NotAllowed') >= 0 || m.indexOf('denied') >= 0 || m.indexOf('Permission') >= 0) {
         document.getElementById('camHelp').style.display = 'block';
       } else if (m.indexOf('NotFound') >= 0) {
         alert('ไม่พบกล้อง — พิมพ์บาร์โค้ดแทนได้ครับ');
@@ -595,21 +623,35 @@
 
   // ---------- สลับหน้า + สรุป ----------
   function showPage(page) {
-    var pages = { dash: 'pageDash', search: 'pageSearch', summary: 'pageSummary' };
+    var pages = { dash: 'pageDash', search: 'pageSearch', summary: 'pageSummary', labels: 'pageLabels' };
     for (var pg in pages) document.getElementById(pages[pg]).style.display = (pg === page) ? 'block' : 'none';
     document.getElementById('tabDash').className = page === 'dash' ? 'tab active' : 'tab';
     document.getElementById('tabSearch').className = page === 'search' ? 'tab active' : 'tab';
     document.getElementById('tabSummary').className = page === 'summary' ? 'tab active' : 'tab';
+    document.getElementById('tabLabels').className = page === 'labels' ? 'tab active' : 'tab';
     if (page === 'summary') loadAudit();
     if (page === 'dash') loadDashboard();
+    if (page === 'labels') renderLabels();
   }
 
-  function loadDashboard() {
+  var dashData = null, dashLoadedAt = 0;
+  function loadDashboard(force) {
+    // ถ้าเพิ่งโหลดไม่เกิน 30 วิ ใช้ข้อมูลเดิม (ลดการยิงซ้ำ)
+    if (!force && dashData && (Date.now() - dashLoadedAt < 30000)) {
+      renderDashboard(dashData);
+      return;
+    }
     document.getElementById('dashLoading').style.display = 'block';
     document.getElementById('dashContent').style.display = 'none';
     fetch(API_URL + '?action=dashboard')
       .then(function(r){ return r.json(); })
       .then(function(d){
+        dashData = d; dashLoadedAt = Date.now();
+        renderDashboard(d);
+      })
+      .catch(function(err){ document.getElementById('dashLoading').textContent = 'โหลดแดชบอร์ดไม่ได้'; });
+  }
+  function renderDashboard(d) {
         document.getElementById('dashLoading').style.display = 'none';
         document.getElementById('dashContent').style.display = 'block';
         document.getElementById('dProgTxt').textContent = d.checkedCount + ' / ' + d.totalProducts + ' รายการ';
@@ -620,22 +662,58 @@
         document.getElementById('dMatched').textContent = d.matched;
         document.getElementById('dNear').textContent = d.nearExp;
         document.getElementById('dExpired').textContent = d.expired;
+        document.getElementById('expListCard').style.display = 'none';
         var u = d.urgent || [];
         if (u.length > 0) {
           document.getElementById('dUrgentCard').style.display = 'block';
           var h = '';
           for (var i = 0; i < u.length; i++) {
             var col = u[i].kind === 'expired' ? '#b3421f' : (u[i].kind === 'near' ? '#a5730f' : '#c47d1a');
-            h += '<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0;' + (i < u.length-1 ? ' border-bottom:0.5px solid #eee;' : '') + '">'
+            var target = u[i].code || u[i].barcode || '';
+            h += '<div onclick="openFromDash(\'' + target + '\')" style="display:flex; justify-content:space-between; align-items:center; padding:11px 0; cursor:pointer;' + (i < u.length-1 ? ' border-bottom:0.5px solid #eee;' : '') + '">'
               + '<div><div style="font-size:14px; font-weight:500;">' + u[i].name + '</div>'
-              + '<div style="font-size:11px; color:' + col + ';">' + u[i].detail + '</div></div></div>';
+              + '<div style="font-size:11px; color:' + col + ';">' + u[i].detail + '</div></div>'
+              + '<span style="color:#ccc; font-size:18px;">›</span></div>';
           }
           document.getElementById('dUrgent').innerHTML = h;
         } else {
           document.getElementById('dUrgentCard').style.display = 'none';
         }
-      })
-      .catch(function(err){ document.getElementById('dashLoading').textContent = 'โหลดแดชบอร์ดไม่ได้'; });
+  }
+
+  // กดรายการใน Dashboard -> เด้งไปหน้าค้นหา โชว์รายละเอียด
+  function openFromDash(key) {
+    if (!key) return;
+    showPage('search');
+    document.getElementById('barcode').value = key;
+    search();
+  }
+
+  // กดการ์ดหมดอายุ -> ขยายรายการออกมา
+  var expListMode = null;
+  function toggleExpList(mode) {
+    if (!dashData) return;
+    var card = document.getElementById('expListCard');
+    if (expListMode === mode && card.style.display === 'block') {
+      card.style.display = 'none'; expListMode = null; return;
+    }
+    expListMode = mode;
+    var list = (mode === 'expired') ? (dashData.expiredList || []) : (dashData.nearList || []);
+    document.getElementById('expListTitle').textContent = (mode === 'expired') ? 'สินค้าหมดอายุแล้ว' : 'สินค้าใกล้หมดอายุ (3 เดือน)';
+    if (list.length === 0) {
+      document.getElementById('expList').innerHTML = '<div style="color:#999; padding:8px 0;">ไม่มีรายการ</div>';
+    } else {
+      var col = (mode === 'expired') ? '#b3421f' : '#a5730f';
+      var h = '';
+      for (var i = 0; i < list.length; i++) {
+        h += '<div onclick="openFromDash(\'' + (list[i].code || '') + '\')" style="display:flex; justify-content:space-between; align-items:center; padding:11px 0; cursor:pointer;' + (i < list.length-1 ? ' border-bottom:0.5px solid #eee;' : '') + '">'
+          + '<div><div style="font-size:14px; font-weight:500;">' + list[i].name + '</div>'
+          + '<div style="font-size:11px; color:' + col + ';">Lot ' + (list[i].lot || '-') + ' • หมดอายุ ' + (list[i].exp || '-') + '</div></div>'
+          + '<span style="color:#ccc; font-size:18px;">›</span></div>';
+      }
+      document.getElementById('expList').innerHTML = h;
+    }
+    card.style.display = 'block';
   }
 
   function loadAudit() {
@@ -655,7 +733,10 @@
     renderAudit();
   }
   function isFixed(it) { return String(it.status || '').indexOf('แก้แล้ว') === 0; }
-  function isMatched(it) { return String(it.note || '').indexOf('[ตรงกับระบบ]') >= 0 || it.diff === 0; }
+  function isMatched(it) {
+    if (String(it.note || '').indexOf('[ตรงกับระบบ]') >= 0) return true;
+    return it.diff !== '' && it.diff != null && Number(it.diff) === 0;
+  }
   function renderAudit() {
     var list = auditData.filter(function(it){
       if (auditFilter === 'fixed') return isFixed(it);
@@ -696,21 +777,215 @@
     if (!confirm('ยืนยันว่าแก้ที่ POS แล้ว?')) return;
     fetch(API_URL + '?action=markFixed&row=' + row)
       .then(function(r){ return r.json(); })
-      .then(function(res){ if (res && res.ok) loadAudit(); else alert('ไม่สำเร็จ'); })
+      .then(function(res){ if (res && res.ok) { dashData = null; loadAudit(); } else alert('ไม่สำเร็จ'); })
       .catch(function(err){ alert('ผิดพลาด: ' + err); });
+  }
+
+  // ---------- ป้ายราคา ----------
+  var LABELS = [];
+  function loadLabels() {
+    try { LABELS = JSON.parse(localStorage.getItem('priceLabels') || '[]'); } catch(e) { LABELS = []; }
+    updateLabelCount();
+  }
+  function saveLabels() {
+    try { localStorage.setItem('priceLabels', JSON.stringify(LABELS)); } catch(e){}
+    updateLabelCount();
+  }
+  function updateLabelCount() {
+    var el = document.getElementById('labelCount');
+    if (el) el.textContent = LABELS.length > 0 ? ' (' + LABELS.length + ')' : '';
+  }
+  function addToLabels() {
+    if (!currentProduct) return;
+    if (!currentProduct.price || currentProduct.price <= 0) {
+      if (!confirm('สินค้านี้ไม่มีราคาในระบบ ยังต้องการเพิ่มลงป้ายไหม? (ราคาจะว่าง)')) return;
+    }
+    // กันซ้ำ (รหัสเดียวกัน)
+    for (var i = 0; i < LABELS.length; i++) {
+      if (LABELS[i].code === currentProduct.productCode) {
+        alert('สินค้านี้อยู่ในรายการป้ายแล้ว');
+        return;
+      }
+    }
+    LABELS.push({
+      code: currentProduct.productCode,
+      name: currentProduct.name,
+      barcode: currentProduct.barcode,
+      price: currentProduct.price || 0,
+      unit: currentProduct.unitName || 'หน่วย'
+    });
+    saveLabels();
+    var btn = document.getElementById('addLabelBtn');
+    btn.textContent = '✓ เพิ่มแล้ว';
+    setTimeout(function(){ btn.innerHTML = '🏷️ เพิ่มลงป้ายราคา'; }, 1200);
+  }
+  function renderLabels() {
+    var box = document.getElementById('labelList');
+    var info = document.getElementById('labelInfo');
+    var actions = document.getElementById('labelActions');
+    if (LABELS.length === 0) {
+      box.innerHTML = '';
+      info.textContent = 'ยังไม่มีป้าย — ไปที่หน้าค้นหา เลือกสินค้า แล้วกด "เพิ่มลงป้ายราคา"';
+      actions.style.display = 'none';
+      return;
+    }
+    info.textContent = 'เลือกไว้ ' + LABELS.length + ' ป้าย';
+    actions.style.display = 'block';
+    var html = '';
+    for (var i = 0; i < LABELS.length; i++) {
+      var l = LABELS[i];
+      html += '<div class="card" style="margin-bottom:8px;"><div class="pad" style="display:flex; justify-content:space-between; align-items:center;">'
+        + '<div><div style="font-size:14px; font-weight:600;">' + l.name + '</div>'
+        + '<div style="font-size:12px; color:#888;">' + l.code + ' • ฿' + (l.price ? Number(l.price).toFixed(2) : '-') + '/' + l.unit + '</div></div>'
+        + '<button onclick="removeLabel(' + i + ')" style="width:34px; height:34px; border:none; background:#f2f2f2; border-radius:9px; color:#c0392b; font-size:18px;">✕</button>'
+        + '</div></div>';
+    }
+    box.innerHTML = html;
+  }
+  function removeLabel(i) {
+    LABELS.splice(i, 1);
+    saveLabels();
+    renderLabels();
+  }
+  function clearLabels() {
+    if (!confirm('ล้างรายการป้ายทั้งหมด?')) return;
+    LABELS = [];
+    saveLabels();
+    renderLabels();
+  }
+
+  // สร้างหน้า A4 เต็มไปด้วยป้าย แล้วเปิดหน้าปริ้น (เลือกบันทึกเป็น PDF ได้)
+  // สร้าง PDF ป้ายราคาโดยตรง (ขนาดเป๊ะ) ด้วย jsPDF
+  // วาดแต่ละป้ายลง canvas ก่อน (canvas รองรับภาษาไทย) แล้วใส่รูปลง PDF
+  function printLabels() {
+    if (LABELS.length === 0) return;
+    var btn = document.querySelector('#labelActions .btn-scan');
+    var oldTxt = btn.textContent;
+    btn.textContent = 'กำลังสร้าง PDF...'; btn.disabled = true;
+
+    try {
+      var jsPDF = window.jspdf.jsPDF;
+      var doc = new jsPDF({ orientation: 'portrait', unit: 'cm', format: 'a4' });
+
+      // A4 = 21 x 29.7 cm. ป้าย 5 x 3.5, ขอบ 0.5 (ชิด - ตั้งเครื่องพิมพ์ borderless)
+      var mL = 0.5, mT = 0.5, lw = 5, lh = 3.5;
+      var cols = 4;         // 0.5 + 5*4 = 20.5 < 21 ✓
+      var rowsPerPage = 8;  // 0.5 + 3.5*8 = 28.5 < 29.7 ✓
+      var perPage = cols * rowsPerPage;  // 32 ป้าย/แผ่น
+
+      for (var i = 0; i < LABELS.length; i++) {
+        if (i > 0 && i % perPage === 0) doc.addPage();
+        var idxInPage = i % perPage;
+        var col = idxInPage % cols;
+        var row = Math.floor(idxInPage / cols);
+        var x = mL + col * lw;
+        var y = mT + row * lh;
+        var img = renderLabelCanvas(LABELS[i]);
+        doc.addImage(img, 'PNG', x, y, lw, lh);
+      }
+
+      doc.save('ป้ายราคา_' + LABELS.length + 'ป้าย.pdf');
+      btn.textContent = oldTxt; btn.disabled = false;
+    } catch (e) {
+      alert('สร้าง PDF ไม่สำเร็จ: ' + e);
+      btn.textContent = oldTxt; btn.disabled = false;
+    }
+  }
+
+  // วาดป้าย 1 ใบลง canvas (เลย์เอาต์ 3 ชั้น: ชื่อบน / ราคาแถบเหลืองกลาง / บาร์โค้ดล่าง)
+  function renderLabelCanvas(l) {
+    var scale = 48;  // px ต่อ cm (ความละเอียดสูง)
+    var W = 5 * scale, H = 3.5 * scale;  // ป้าย 5 x 3.5 cm
+    var cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    var ctx = cv.getContext('2d');
+
+    // พื้นขาว + กรอบเส้นตัด
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = '#bbb'; ctx.lineWidth = 1;
+    ctx.setLineDash([4, 3]); ctx.strokeRect(0.5, 0.5, W-1, H-1); ctx.setLineDash([]);
+
+    var pad = scale * 0.12;
+    var parts = String(l.name).split('(');
+    var nm = parts[0].trim();
+    var sub = parts[1] ? '(' + parts[1].replace(')','').trim() + ')' : '';
+
+    // ===== ชั้นบน: ชื่อสินค้า (ซ้าย) + รหัส (ขวา) =====
+    var topH = scale * 0.72;
+    // รหัสมุมขวาบน
+    ctx.fillStyle = '#888';
+    ctx.textAlign = 'right';
+    ctx.font = 'bold ' + (scale * 0.24) + 'px -apple-system, Sarabun, sans-serif';
+    ctx.fillText(l.code, W - pad, pad + scale * 0.22);
+    var codeW = ctx.measureText(l.code).width + scale * 0.15;
+    // ชื่อสินค้า (ตัดถ้ายาว)
+    ctx.fillStyle = '#1a1a1a';
+    ctx.textAlign = 'left';
+    ctx.font = 'bold ' + (scale * 0.3) + 'px -apple-system, Sarabun, sans-serif';
+    var nameMaxW = W - pad * 2 - codeW;
+    var line = nm;
+    while (ctx.measureText(line).width > nameMaxW && line.length > 3) line = line.slice(0, -1);
+    if (line !== nm) line = line.slice(0, -1) + '…';
+    ctx.fillText(line, pad, pad + scale * 0.22);
+    // ชื่อรอง (รส/ขนาด)
+    if (sub) {
+      ctx.fillStyle = '#777';
+      ctx.font = (scale * 0.22) + 'px -apple-system, Sarabun, sans-serif';
+      var sline = sub;
+      while (ctx.measureText(sline).width > W - pad*2 && sline.length > 3) sline = sline.slice(0, -1);
+      ctx.fillText(sline, pad, pad + scale * 0.48);
+    }
+
+    // ===== ชั้นกลาง: แถบเหลืองยาวเต็มความกว้าง + ราคา =====
+    var barTop = topH;
+    var barH = H * 0.45;
+    ctx.fillStyle = '#ffe100';
+    ctx.fillRect(0, barTop, W, barH);
+    // ราคา (ตัวใหญ่เต็มพื้นที่ 56px + กันล้นถ้าราคายาว)
+    var priceTxt = l.price ? '฿' + Math.round(Number(l.price)) : '-';
+    ctx.fillStyle = '#111';
+    ctx.textAlign = 'center';
+    var priceSize = scale * 1.48;
+    ctx.font = '800 ' + priceSize + 'px -apple-system, Sarabun, sans-serif';
+    // ถ้าราคายาวเกินพื้นที่ (เว้นที่หน่วยด้านขวา) ลดขนาดลงให้พอดี
+    var priceMaxW = W * 0.62;
+    while (ctx.measureText(priceTxt).width > priceMaxW && priceSize > scale * 0.7) {
+      priceSize -= 2;
+      ctx.font = '800 ' + priceSize + 'px -apple-system, Sarabun, sans-serif';
+    }
+    ctx.textBaseline = 'middle';
+    var priceY = barTop + barH * 0.5;
+    ctx.fillText(priceTxt, W * 0.40, priceY);
+    // หน่วย (ขวาของราคา)
+    ctx.textAlign = 'left';
+    ctx.font = 'bold ' + (scale * 0.26) + 'px -apple-system, Sarabun, sans-serif';
+    ctx.fillText('บาท', W * 0.70, priceY - scale * 0.16);
+    ctx.fillText('/ ' + l.unit, W * 0.70, priceY + scale * 0.16);
+    ctx.textBaseline = 'alphabetic';
+
+    // ===== ชั้นล่าง: บาร์โค้ดเต็มความกว้าง =====
+    if (l.barcode) {
+      try {
+        var bcCanvas = document.createElement('canvas');
+        JsBarcode(bcCanvas, String(l.barcode), { format: 'CODE128', width: 2, height: 45, fontSize: 15, margin: 0, displayValue: true });
+        var bcAreaTop = barTop + barH + scale * 0.05;
+        var bcAreaH = H - bcAreaTop - scale * 0.08;
+        var bcW = W - pad * 2;
+        var bcH = bcCanvas.height / bcCanvas.width * bcW;
+        if (bcH > bcAreaH) { bcH = bcAreaH; bcW = bcCanvas.width / bcCanvas.height * bcH; }
+        var bcX = (W - bcW) / 2;
+        ctx.drawImage(bcCanvas, bcX, bcAreaTop, bcW, bcH);
+      } catch (e) {}
+    }
+
+    return cv.toDataURL('image/png');
   }
 
   // ---------- เริ่มต้น ----------
   document.getElementById('barcode').addEventListener('keydown', function(e){ if (e.key === 'Enter') search(); });
-  (function(){
-    var ua = navigator.userAgent;
-    if (/iPad|iPhone|iPod/.test(ua) && /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua)) {
-      document.getElementById('scanBtn').style.display = 'none';
-      document.getElementById('browserTip').style.display = 'block';
-    }
-  })();
   refreshData();  // โหลด cache ตอนเปิดแอป
   loadDashboard();  // โหลดแดชบอร์ด (แท็บแรก)
+  loadLabels();  // โหลดรายการป้ายที่เก็บไว้
 </script>
 </body>
 </html>
