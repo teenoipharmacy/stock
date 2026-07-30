@@ -114,8 +114,8 @@
   .save-ok { display: none; text-align: center; color: #1d9e75; font-weight: 600; margin-top: 12px; }
 
   /* แท็บ */
-  .tabs { display: flex; gap: 8px; margin-bottom: 10px; }
-  .tab { flex: 1; height: 42px; border: none; border-radius: 10px; background: #e6e9ee; color: #667; font-size: 14px; font-weight: 600; }
+  .tabs { display: flex; gap: 5px; margin-bottom: 10px; }
+  .tab { flex: 1; height: 42px; border: none; border-radius: 9px; background: #e6e9ee; color: #667; font-size: 13px; font-weight: 600; padding: 0 2px; white-space: nowrap; }
   .tab.active { background: #1d9e75; color: #fff; }
 
   /* หน้าสรุป */
@@ -146,6 +146,7 @@
     <button class="tab" id="tabSearch" onclick="showPage('search')">ค้นหา</button>
     <button class="tab" id="tabSummary" onclick="showPage('summary')">สรุป</button>
     <button class="tab" id="tabLabels" onclick="showPage('labels')">ป้าย<span id="labelCount"></span></button>
+    <button class="tab" id="tabOrder" onclick="showPage('order')">สั่งซื้อ<span id="orderCount"></span></button>
   </div>
 
   <!-- หน้าแดชบอร์ด -->
@@ -190,6 +191,14 @@
       <div class="card" id="expListCard" style="display:none;"><div class="pad">
         <div style="font-size:14px; font-weight:600; margin-bottom:8px;" id="expListTitle"></div>
         <div id="expList"></div>
+      </div></div>
+
+      <div class="card" id="dOrderCard" style="display:none; background:#fdecea; cursor:pointer;" onclick="showPage('order')"><div class="pad" style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-size:24px; font-weight:700; color:#c0392b;" id="dNeedOrder">0</div>
+          <div style="font-size:12px; color:#c0392b;">ต้องสั่งซื้อ</div>
+        </div>
+        <span style="color:#c0392b; font-size:18px;">›</span>
       </div></div>
 
       <div class="card" id="dUrgentCard" style="display:none;"><div class="pad">
@@ -266,6 +275,23 @@
 
         <div class="hint">แตะที่ lot เพื่อแก้ไข</div>
         <div id="rLots"></div>
+
+        <div id="rReorderBox" style="background:#eef6f2; border:1px solid #b8ddc9; border-radius:10px; padding:12px; margin:10px 0;">
+          <div style="font-size:13px; font-weight:600; color:#0f6e56; margin-bottom:8px;">🔔 แจ้งเตือนสั่งซื้อ</div>
+          <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+            <span style="font-size:13px; color:#555; flex:0 0 auto;">เตือนเมื่อต่ำกว่า</span>
+            <input type="number" id="rThreshold" inputmode="numeric" placeholder="10" style="width:60px; height:38px; text-align:center; border:1.5px solid #ddd; border-radius:8px; font-size:15px;">
+            <span style="font-size:13px; color:#555;" id="rThUnit">หน่วย</span>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center; margin-bottom:10px;">
+            <span style="font-size:13px; color:#555; flex:0 0 auto;">สั่งเติมให้ถึง</span>
+            <input type="number" id="rRefill" inputmode="numeric" placeholder="50" style="width:60px; height:38px; text-align:center; border:1.5px solid #ddd; border-radius:8px; font-size:15px;">
+            <span style="font-size:13px; color:#555;" id="rRfUnit">หน่วย</span>
+          </div>
+          <button class="btn-find" style="width:100%; height:40px;" onclick="saveReorder()">บันทึกจุดเตือน</button>
+          <div id="rReorderStatus" style="font-size:12px; color:#888; margin-top:8px; text-align:center;"></div>
+        </div>
+
         <button class="btn-add" onclick="openAddLot()">+ เพิ่ม lot ใหม่</button>
         <button class="btn-scan" style="margin-top:8px; height:46px; font-size:15px; background:#c47d1a;" onclick="addToLabels()" id="addLabelBtn">🏷️ เพิ่มลงป้ายราคา</button>
       </div>
@@ -299,6 +325,20 @@
       <button class="btn-scan" onclick="printLabels()" style="margin-bottom:8px;">📄 ดาวน์โหลด PDF ป้ายราคา</button>
       <button class="btn-add" onclick="clearLabels()" style="color:#c0392b; border-color:#e0a0a0;">ล้างรายการทั้งหมด</button>
     </div>
+    <div class="foot">ระบบเช็คสต็อก • TEENOI PHARMACY</div>
+  </div>
+
+  <!-- หน้าสั่งซื้อ -->
+  <div id="pageOrder" style="display:none;">
+    <div class="sum-tabs">
+      <button class="sum-tab active" id="otToOrder" onclick="filterOrder('toorder')">ต้องสั่ง</button>
+      <button class="sum-tab" id="otWaiting" onclick="filterOrder('waiting')">รอของ</button>
+    </div>
+    <button class="btn-add" onclick="loadOrder()" style="margin-bottom:10px;">โหลดรายการใหม่</button>
+    <div id="autoRecvBox"></div>
+    <div class="loading" id="orderLoading" style="display:none;">กำลังโหลด...</div>
+    <div class="empty" id="orderEmpty" style="display:none;">ไม่มีรายการ</div>
+    <div id="orderList"></div>
     <div class="foot">ระบบเช็คสต็อก • TEENOI PHARMACY</div>
   </div>
 </div>
@@ -339,12 +379,60 @@
   var API_URL = "https://script.google.com/macros/s/AKfycbxQld7PExhL_sdjyxBx-4rcNUYh79F9dE4otMrzv9BB20pIvC_J_rhVBBOEMU1XGbbupg/exec";
   // ==================================
 
-  var CACHE = { stock: [], barcodes: [], prices: {}, loaded: false };
+  var CACHE = { stock: [], barcodes: [], prices: {}, reorder: {}, loaded: false };
+  var IDX = { byCode: {}, bcToCode: {}, multByCode: {} };  // ตารางค้นหาเร็ว
   var html5QrScanner = null, cameraOn = false;
   var currentProduct = null, editingLot = null, selUnit = 1;
   var auditData = [], auditFilter = 'pending';
+  var LS_KEY = 'stockCache_v1';
 
-  // ---------- โหลดข้อมูลทั้งหมดเก็บใน cache ----------
+  // สร้าง index จากข้อมูลดิบ (ทำครั้งเดียวตอนโหลด -> ค้นหาเร็วมาก)
+  function buildIndex() {
+    IDX.byCode = {}; IDX.bcToCode = {}; IDX.multByCode = {};
+    // จัดกลุ่ม stock ตามรหัสสินค้า
+    for (var i = 0; i < CACHE.stock.length; i++) {
+      var s = CACHE.stock[i];
+      var code = s.code;
+      if (!IDX.byCode[code]) IDX.byCode[code] = { name: s.name, unit: s.unit || 'หน่วย', lots: [] };
+      IDX.byCode[code].lots.push({ lot: s.lot, qty: s.qty, mfg: s.mfg, exp: s.exp });
+    }
+    // แมปบาร์โค้ด -> รหัส + ตัวคูณหน่วยใหญ่สุด
+    for (var b = 0; b < CACHE.barcodes.length; b++) {
+      var br = CACHE.barcodes[b];
+      if (br.b1) IDX.bcToCode[br.b1] = br.code;
+      if (br.b2) IDX.bcToCode[br.b2] = br.code;
+      if (br.b3) IDX.bcToCode[br.b3] = br.code;
+      if (!IDX.multByCode[br.code] || br.mult > IDX.multByCode[br.code]) IDX.multByCode[br.code] = br.mult;
+    }
+  }
+
+  // เก็บ cache ลงเครื่อง (เปิดครั้งหน้าขึ้นทันที)
+  var cacheLastUpdate = '';
+  function saveCacheLocal(lastUpdate) {
+    if (lastUpdate != null) cacheLastUpdate = lastUpdate;
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({
+        stock: CACHE.stock, barcodes: CACHE.barcodes, prices: CACHE.prices, reorder: CACHE.reorder, lastUpdate: cacheLastUpdate
+      }));
+    } catch(e) {}
+  }
+  function loadCacheLocal() {
+    try {
+      var raw = localStorage.getItem(LS_KEY);
+      if (!raw) return false;
+      var d = JSON.parse(raw);
+      CACHE.stock = d.stock || []; CACHE.barcodes = d.barcodes || []; CACHE.prices = d.prices || {}; CACHE.reorder = d.reorder || {};
+      CACHE.loaded = true;
+      cacheLastUpdate = d.lastUpdate || '';
+      buildIndex();
+      if (d.lastUpdate) {
+        document.getElementById('lastUpdate').textContent = 'อัปเดต ' + new Date(d.lastUpdate).toLocaleString('th-TH') + ' • แตะโหลดใหม่';
+      }
+      return true;
+    } catch(e) { return false; }
+  }
+
+  // ---------- โหลดข้อมูลทั้งหมดจากเน็ต (ครั้งเดียว) ----------
   function refreshData() {
     var el = document.getElementById('lastUpdate');
     el.textContent = 'กำลังโหลดข้อมูล...';
@@ -354,81 +442,66 @@
         CACHE.stock = d.stock || [];
         CACHE.barcodes = d.barcodes || [];
         CACHE.prices = d.prices || {};
+        CACHE.reorder = d.reorder || {};
         CACHE.loaded = true;
+        buildIndex();                 // สร้าง index ทันที
+        saveCacheLocal(d.lastUpdate);  // เก็บลงเครื่อง
         if (d.lastUpdate) {
-          var dt = new Date(d.lastUpdate);
-          el.textContent = 'อัปเดต ' + dt.toLocaleString('th-TH') + ' • แตะโหลดใหม่';
+          el.textContent = 'อัปเดต ' + new Date(d.lastUpdate).toLocaleString('th-TH') + ' • แตะโหลดใหม่';
         } else {
           el.textContent = 'ยังไม่มีข้อมูล • แตะโหลดใหม่';
         }
       })
-      .catch(function(){ el.textContent = 'โหลดข้อมูลไม่ได้ • แตะลองใหม่'; });
+      .catch(function(){
+        if (!CACHE.loaded) el.textContent = 'โหลดข้อมูลไม่ได้ • แตะลองใหม่';
+      });
   }
 
-  // ---------- ค้นหาจาก cache (ขึ้นทันที) ----------
+  // ---------- ค้นหาจาก index (ขึ้นทันที ไม่ยิงเน็ต) ----------
   function search() {
     var bc = document.getElementById('barcode').value.trim();
     if (!bc) return;
     document.getElementById('result').style.display = 'none';
     document.getElementById('notfound').style.display = 'none';
-
     if (!CACHE.loaded) {
       document.getElementById('loading').style.display = 'block';
-      fetch(API_URL + '?action=allData')
-        .then(function(r){ return r.json(); })
-        .then(function(d){
-          CACHE.stock = d.stock || []; CACHE.barcodes = d.barcodes || []; CACHE.prices = d.prices || {}; CACHE.loaded = true;
-          document.getElementById('loading').style.display = 'none';
-          doLookup(bc);
-        })
-        .catch(function(){ document.getElementById('loading').style.display = 'none'; alert('โหลดข้อมูลไม่ได้'); });
+      refreshDataThen(function(){ document.getElementById('loading').style.display = 'none'; doLookup(bc); });
     } else {
       doLookup(bc);
     }
   }
+  // โหลดแล้วทำต่อ (ใช้เฉพาะกรณียังไม่มี cache)
+  function refreshDataThen(cb) {
+    fetch(API_URL + '?action=allData')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        CACHE.stock = d.stock || []; CACHE.barcodes = d.barcodes || []; CACHE.prices = d.prices || {}; CACHE.reorder = d.reorder || {};
+        CACHE.loaded = true; buildIndex(); saveCacheLocal(d.lastUpdate);
+        if (cb) cb();
+      })
+      .catch(function(){ document.getElementById('loading').style.display = 'none'; alert('โหลดข้อมูลไม่ได้'); });
+  }
 
+  // ค้นหาแบบเปิดตาราง (ไม่วน loop ทั้ง array)
   function doLookup(key) {
     key = String(key).trim();
-    var productCode = '', unitMult = 1;
-
-    // หา productCode จากบาร์โค้ด
-    for (var b = 0; b < CACHE.barcodes.length; b++) {
-      var br = CACHE.barcodes[b];
-      if (br.b1 === key || br.b2 === key || br.b3 === key) { productCode = br.code; break; }
-    }
-    if (!productCode) productCode = key;
-
-    // หาตัวคูณหน่วยใหญ่สุด
-    for (var c = 0; c < CACHE.barcodes.length; c++) {
-      if (CACHE.barcodes[c].code === productCode && CACHE.barcodes[c].mult > unitMult) {
-        unitMult = CACHE.barcodes[c].mult;
-      }
-    }
-
-    // ดึงทุก lot
-    var lots = [], name = '', unitName = 'หน่วย';
-    for (var i = 0; i < CACHE.stock.length; i++) {
-      var s = CACHE.stock[i];
-      if (s.code === productCode) {
-        name = s.name; if (s.unit) unitName = s.unit;
-        lots.push({ lot: s.lot, qty: s.qty, mfg: s.mfg, exp: s.exp });
-      }
-    }
-
-    if (lots.length === 0) {
+    var productCode = IDX.bcToCode[key] || key;   // เปิดตารางบาร์โค้ด -> รหัส
+    var entry = IDX.byCode[productCode];           // เปิดตารางรหัส -> สินค้า
+    if (!entry) {
       document.getElementById('notfound').style.display = 'block';
       return;
     }
-
+    var unitMult = IDX.multByCode[productCode] || 1;
+    var unitName = entry.unit;
+    var lots = entry.lots;
     var total = 0;
     for (var j = 0; j < lots.length; j++) {
       total += lots[j].qty;
       lots[j].unitText = unitText(lots[j].qty, unitMult, unitName);
     }
-
     var price = CACHE.prices[productCode];
-    currentProduct = { barcode: key, productCode: productCode, name: name, unitName: unitName, unitMult: unitMult, lots: lots, price: price };
-    showResult(name, productCode, total, unitName, lots, price);
+    currentProduct = { barcode: key, productCode: productCode, name: entry.name, unitName: unitName, unitMult: unitMult, lots: lots, price: price };
+    showResult(entry.name, productCode, total, unitName, lots, price);
   }
 
   function unitText(pieces, mult, uName) {
@@ -459,13 +532,18 @@
       document.getElementById('rNewPrice').value = '';
     }
 
-    // บาร์โค้ด (ภาพ) ในหน้าสินค้า
+    // บาร์โค้ด (ภาพ) - วาดเฉพาะเมื่อสินค้าเปลี่ยน (ไม่วาดซ้ำ = เร็วขึ้น)
     var bcWrap = document.getElementById('rBarcodeWrap');
     if (currentProduct && currentProduct.barcode) {
-      try {
-        JsBarcode('#rBarcode', String(currentProduct.barcode), { format:'CODE128', width:1.8, height:50, fontSize:14, margin:4, displayValue:true });
+      if (bcWrap.getAttribute('data-bc') !== String(currentProduct.barcode)) {
+        try {
+          JsBarcode('#rBarcode', String(currentProduct.barcode), { format:'CODE128', width:1.8, height:50, fontSize:14, margin:4, displayValue:true });
+          bcWrap.setAttribute('data-bc', String(currentProduct.barcode));
+          bcWrap.style.display = 'block';
+        } catch(e) { bcWrap.style.display = 'none'; }
+      } else {
         bcWrap.style.display = 'block';
-      } catch(e) { bcWrap.style.display = 'none'; }
+      }
     } else {
       bcWrap.style.display = 'none';
     }
@@ -488,6 +566,18 @@
     }
     document.getElementById('rLots').innerHTML = html;
     document.getElementById('result').style.display = 'block';
+
+    // กล่องแจ้งเตือนสั่งซื้อ
+    var ro = CACHE.reorder[code] || {};
+    document.getElementById('rThreshold').value = ro.threshold || '';
+    document.getElementById('rRefill').value = ro.refill || '';
+    document.getElementById('rThUnit').textContent = uName;
+    document.getElementById('rRfUnit').textContent = uName;
+    var st = document.getElementById('rReorderStatus');
+    if (ro.status === 'ordered') st.textContent = '● สั่งซื้อแล้ว รอของ';
+    else if (ro.threshold > 0 && total <= ro.threshold) st.textContent = '● ต่ำกว่าจุดเตือน ควรสั่งซื้อ';
+    else if (ro.threshold > 0) st.textContent = 'ปกติ (ตั้งเตือนที่ ' + ro.threshold + ')';
+    else st.textContent = 'ยังไม่ตั้งจุดเตือน';
   }
 
   // บันทึกราคาที่กรอกเอง
@@ -506,6 +596,7 @@
           // อัปเดต cache + แสดงราคาทันที
           CACHE.prices[currentProduct.productCode] = p;
           currentProduct.price = p;
+          saveCacheLocal();  // อัปเดต cache เครื่อง
           document.getElementById('rPrice').textContent = '฿' + p.toFixed(2) + ' /' + currentProduct.unitName;
           document.getElementById('rPrice').style.display = 'inline-block';
           document.getElementById('rPriceInput').style.display = 'none';
@@ -632,15 +723,16 @@
     cameraOn = true;
     html5QrScanner = new Html5Qrcode('reader', {
       formatsToSupport: [
-        Html5QrcodeSupportedFormats.EAN_13, Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.CODE_128, Html5QrcodeSupportedFormats.UPC_A,
-        Html5QrcodeSupportedFormats.UPC_E, Html5QrcodeSupportedFormats.CODE_39
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A
       ],
       experimentalFeatures: { useBarCodeDetectorIfSupported: true }
     });
     html5QrScanner.start(
       { facingMode: 'environment' },
-      { fps: 25, qrbox: { width: 260, height: 150 }, aspectRatio: 1.4 },
+      { fps: 30, qrbox: { width: 280, height: 140 }, aspectRatio: 1.777 },
       function(txt) {
         document.getElementById('barcode').value = txt;
         stopCamera();
@@ -677,15 +769,17 @@
 
   // ---------- สลับหน้า + สรุป ----------
   function showPage(page) {
-    var pages = { dash: 'pageDash', search: 'pageSearch', summary: 'pageSummary', labels: 'pageLabels' };
+    var pages = { dash: 'pageDash', search: 'pageSearch', summary: 'pageSummary', labels: 'pageLabels', order: 'pageOrder' };
     for (var pg in pages) document.getElementById(pages[pg]).style.display = (pg === page) ? 'block' : 'none';
     document.getElementById('tabDash').className = page === 'dash' ? 'tab active' : 'tab';
     document.getElementById('tabSearch').className = page === 'search' ? 'tab active' : 'tab';
     document.getElementById('tabSummary').className = page === 'summary' ? 'tab active' : 'tab';
     document.getElementById('tabLabels').className = page === 'labels' ? 'tab active' : 'tab';
+    document.getElementById('tabOrder').className = page === 'order' ? 'tab active' : 'tab';
     if (page === 'summary') loadAudit();
     if (page === 'dash') loadDashboard();
     if (page === 'labels') renderLabels();
+    if (page === 'order') loadOrder();
   }
 
   var dashData = null, dashLoadedAt = 0;
@@ -716,6 +810,13 @@
         document.getElementById('dMatched').textContent = d.matched;
         document.getElementById('dNear').textContent = d.nearExp;
         document.getElementById('dExpired').textContent = d.expired;
+        var noEl = document.getElementById('dNeedOrder');
+        if (d.needOrder && d.needOrder > 0) {
+          noEl.textContent = d.needOrder;
+          document.getElementById('dOrderCard').style.display = 'block';
+        } else {
+          document.getElementById('dOrderCard').style.display = 'none';
+        }
         document.getElementById('expListCard').style.display = 'none';
         var u = d.urgent || [];
         if (u.length > 0) {
@@ -1035,11 +1136,155 @@
     return cv.toDataURL('image/png');
   }
 
+  // ---------- ระบบสั่งซื้อ ----------
+  function saveReorder() {
+    if (!currentProduct) return;
+    var th = document.getElementById('rThreshold').value.trim();
+    var rf = document.getElementById('rRefill').value.trim();
+    if (!th || Number(th) < 0) { alert('กรุณากรอกจุดเตือน'); return; }
+    if (!rf) rf = th;
+    if (Number(rf) < Number(th)) { alert('จำนวนเติมถึงต้องไม่น้อยกว่าจุดเตือน'); return; }
+    var btn = document.querySelector('#rReorderBox .btn-find');
+    btn.textContent = '...'; btn.disabled = true;
+    fetch(API_URL + '?action=setReorder&code=' + encodeURIComponent(currentProduct.productCode) + '&threshold=' + Number(th) + '&refill=' + Number(rf))
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        btn.textContent = 'บันทึกจุดเตือน'; btn.disabled = false;
+        if (res && res.ok) {
+          CACHE.reorder[currentProduct.productCode] = { threshold: Number(th), refill: Number(rf), status: (CACHE.reorder[currentProduct.productCode]||{}).status || '' };
+          saveCacheLocal();
+          document.getElementById('rReorderStatus').textContent = '✓ บันทึกแล้ว (เตือนที่ ' + th + ')';
+          orderData = null;
+        } else { alert('บันทึกไม่สำเร็จ: ' + (res ? res.error : '')); }
+      })
+      .catch(function(err){ btn.textContent = 'บันทึกจุดเตือน'; btn.disabled = false; alert('ผิดพลาด: ' + err); });
+  }
+
+  var orderData = null, orderFilter = 'toorder';
+  function loadOrder() {
+    document.getElementById('orderLoading').style.display = 'block';
+    document.getElementById('orderEmpty').style.display = 'none';
+    document.getElementById('orderList').innerHTML = '';
+    document.getElementById('autoRecvBox').innerHTML = '';
+    fetch(API_URL + '?action=reorderList')
+      .then(function(r){ return r.json(); })
+      .then(function(d){
+        document.getElementById('orderLoading').style.display = 'none';
+        orderData = d;
+        updateOrderCount();
+        renderAutoReceived();
+        renderOrder();
+      })
+      .catch(function(err){ document.getElementById('orderLoading').style.display = 'none'; alert('โหลดไม่ได้: ' + err); });
+  }
+  function updateOrderCount() {
+    var el = document.getElementById('orderCount');
+    if (el && orderData) {
+      var n = (orderData.toOrder || []).length;
+      el.textContent = n > 0 ? ' (' + n + ')' : '';
+    }
+  }
+  function filterOrder(f) {
+    orderFilter = f;
+    document.getElementById('otToOrder').className = f==='toorder' ? 'sum-tab active' : 'sum-tab';
+    document.getElementById('otWaiting').className = f==='waiting' ? 'sum-tab active' : 'sum-tab';
+    renderOrder();
+  }
+
+  function renderAutoReceived() {
+    var box = document.getElementById('autoRecvBox');
+    if (!orderData || !orderData.autoReceived || orderData.autoReceived.length === 0) { box.innerHTML = ''; return; }
+    var html = '';
+    for (var i = 0; i < orderData.autoReceived.length; i++) {
+      var it = orderData.autoReceived[i];
+      html += '<div class="card" style="background:#eaf7f0; border:1px solid #a9dcc3;"><div class="pad">'
+        + '<div style="font-size:13px; color:#0f6e56; font-weight:600; margin-bottom:6px;">📦 น่าจะได้รับของแล้ว</div>'
+        + '<div style="font-size:14px; font-weight:600;">' + it.name + '</div>'
+        + '<div style="font-size:12px; color:#888; margin:3px 0 8px;">สต็อกเพิ่มจาก ' + it.stockWhenOrdered + ' → ' + it.stock + ' ' + it.unit + '</div>'
+        + '<button class="btn-scan" style="height:40px; font-size:14px;" onclick="doReceived(\'' + it.code + '\')">ยืนยันรับของแล้ว ปลดออก</button>'
+        + '</div></div>';
+    }
+    box.innerHTML = html;
+  }
+
+  function renderOrder() {
+    if (!orderData) return;
+    var list = (orderFilter === 'toorder') ? orderData.toOrder : orderData.waiting;
+    var box = document.getElementById('orderList');
+    if (!list || list.length === 0) {
+      box.innerHTML = '';
+      document.getElementById('orderEmpty').style.display = 'block';
+      document.getElementById('orderEmpty').textContent = orderFilter === 'toorder' ? 'ไม่มีสินค้าที่ต้องสั่ง' : 'ไม่มีสินค้ารอของ';
+      return;
+    }
+    document.getElementById('orderEmpty').style.display = 'none';
+    var html = '';
+    for (var i = 0; i < list.length; i++) {
+      var it = list[i];
+      html += '<div class="card"><div class="pad">';
+      html += '<div style="display:flex; justify-content:space-between; align-items:flex-start;">';
+      html += '<div style="flex:1;"><div style="font-size:15px; font-weight:600;">' + it.name + '</div>';
+      if (orderFilter === 'toorder') {
+        html += '<div style="font-size:12px; color:#888; margin-top:3px;">' + it.code + ' • เหลือ <span style="color:#c0392b; font-weight:700;">' + it.stock + ' ' + it.unit + '</span> (เตือนที่ ' + it.threshold + ')</div>';
+        html += '<div style="font-size:14px; color:#0f6e56; font-weight:700; margin-top:4px;">ควรสั่ง ' + it.orderQty + ' ' + it.unit + '</div>';
+      } else {
+        html += '<div style="font-size:12px; color:#2565a8; margin-top:3px;">' + it.code + ' • สั่งเมื่อ ' + it.orderedAt + '</div>';
+        html += '<div style="font-size:12px; color:#888; margin-top:2px;">เหลือ ' + it.stock + ' ' + it.unit + '</div>';
+      }
+      html += '</div>';
+      if (orderFilter === 'toorder') {
+        html += '<button class="btn-find" style="width:auto; padding:0 14px; height:40px;" onclick="doOrdered(\'' + it.code + '\',' + it.orderQty + ')">สั่งแล้ว</button>';
+      } else {
+        html += '<button class="btn-find" style="width:auto; padding:0 14px; height:40px; background:#2565a8;" onclick="doReceived(\'' + it.code + '\')">รับแล้ว</button>';
+      }
+      html += '</div>';
+      if (orderFilter === 'toorder' && it.barcode) {
+        html += '<div style="text-align:center; margin-top:10px;"><svg id="obc_' + it.code + '"></svg></div>';
+      }
+      html += '</div></div>';
+    }
+    box.innerHTML = html;
+    if (orderFilter === 'toorder') {
+      for (var j = 0; j < list.length; j++) {
+        if (!list[j].barcode) continue;
+        try { JsBarcode('#obc_' + list[j].code, String(list[j].barcode), { format:'CODE128', width:1.5, height:40, fontSize:12, margin:0, displayValue:true }); } catch(e){}
+      }
+    }
+  }
+
+  function doOrdered(code, qty) {
+    if (!confirm('ยืนยันว่าสั่งซื้อแล้ว?\nสินค้านี้จะย้ายไป "รอของ"')) return;
+    fetch(API_URL + '?action=markOrdered&code=' + encodeURIComponent(code) + '&qty=' + (qty||0))
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        if (res && res.ok) {
+          if (CACHE.reorder[code]) CACHE.reorder[code].status = 'ordered';
+          saveCacheLocal();
+          loadOrder();
+        } else alert('ไม่สำเร็จ: ' + (res ? res.error : ''));
+      })
+      .catch(function(err){ alert('ผิดพลาด: ' + err); });
+  }
+  function doReceived(code) {
+    if (!confirm('ยืนยันว่ารับของแล้ว?')) return;
+    fetch(API_URL + '?action=markReceived&code=' + encodeURIComponent(code))
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        if (res && res.ok) {
+          if (CACHE.reorder[code]) CACHE.reorder[code].status = '';
+          saveCacheLocal();
+          loadOrder();
+        } else alert('ไม่สำเร็จ: ' + (res ? res.error : ''));
+      })
+      .catch(function(err){ alert('ผิดพลาด: ' + err); });
+  }
+
   // ---------- เริ่มต้น ----------
   document.getElementById('barcode').addEventListener('keydown', function(e){ if (e.key === 'Enter') search(); });
-  refreshData();  // โหลด cache ตอนเปิดแอป
-  loadDashboard();  // โหลดแดชบอร์ด (แท็บแรก)
-  loadLabels();  // โหลดรายการป้ายที่เก็บไว้
+  loadCacheLocal();   // โหลดจากเครื่องก่อน (ขึ้นทันทีถ้าเคยโหลดแล้ว)
+  refreshData();      // แล้วดึงข้อมูลใหม่จากเน็ต (อัปเดต cache เบื้องหลัง)
+  loadDashboard();    // โหลดแดชบอร์ด (แท็บแรก)
+  loadLabels();       // โหลดรายการป้ายที่เก็บไว้
 </script>
 </body>
 </html>
