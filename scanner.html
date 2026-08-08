@@ -261,6 +261,8 @@
           <span class="chip chip-green" id="rTotal"></span>
         </div>
 
+        <div id="rCheckedBadge" style="display:none; background:#e1f5ee; color:#0f6e56; font-size:12px; font-weight:600; padding:6px 12px; border-radius:8px; margin:8px 0;"></div>
+
         <div id="rBarcodeWrap" style="text-align:center; margin:10px 0; display:none;">
           <svg id="rBarcode"></svg>
         </div>
@@ -307,7 +309,10 @@
       <button class="sum-tab" id="stMatch" onclick="filterAudit('matched')">ตรวจแล้ว-ตรง</button>
       <button class="sum-tab" id="stDone" onclick="filterAudit('fixed')">แก้แล้ว</button>
     </div>
-    <button class="btn-add" onclick="loadAudit()" style="margin-bottom:10px;">โหลดรายการใหม่</button>
+    <div style="display:flex; gap:8px; margin-bottom:10px;">
+      <button class="btn-add" onclick="loadAudit()" style="flex:1; margin:0;">โหลดรายการใหม่</button>
+      <button class="btn-add" onclick="resetAllAudit()" style="flex:0 0 auto; margin:0; color:#c0392b; border-color:#e0a0a0; padding:0 16px;">รีเซตทั้งหมด</button>
+    </div>
     <div class="loading" id="sumLoading" style="display:none;">กำลังโหลด...</div>
     <div class="empty" id="sumEmpty" style="display:none;">ยังไม่มีรายการตรวจนับ</div>
     <div id="sumList"></div>
@@ -379,7 +384,7 @@
   var API_URL = "https://script.google.com/macros/s/AKfycbxQld7PExhL_sdjyxBx-4rcNUYh79F9dE4otMrzv9BB20pIvC_J_rhVBBOEMU1XGbbupg/exec";
   // ==================================
 
-  var CACHE = { stock: [], barcodes: [], prices: {}, reorder: {}, loaded: false };
+  var CACHE = { stock: [], barcodes: [], prices: {}, reorder: {}, audit: {}, loaded: false };
   var IDX = { byCode: {}, bcToCode: {}, multByCode: {} };  // ตารางค้นหาเร็ว
   var html5QrScanner = null, cameraOn = false;
   var currentProduct = null, editingLot = null, selUnit = 1;
@@ -412,7 +417,7 @@
     if (lastUpdate != null) cacheLastUpdate = lastUpdate;
     try {
       localStorage.setItem(LS_KEY, JSON.stringify({
-        stock: CACHE.stock, barcodes: CACHE.barcodes, prices: CACHE.prices, reorder: CACHE.reorder, lastUpdate: cacheLastUpdate
+        stock: CACHE.stock, barcodes: CACHE.barcodes, prices: CACHE.prices, reorder: CACHE.reorder, audit: CACHE.audit, lastUpdate: cacheLastUpdate
       }));
     } catch(e) {}
   }
@@ -421,7 +426,7 @@
       var raw = localStorage.getItem(LS_KEY);
       if (!raw) return false;
       var d = JSON.parse(raw);
-      CACHE.stock = d.stock || []; CACHE.barcodes = d.barcodes || []; CACHE.prices = d.prices || {}; CACHE.reorder = d.reorder || {};
+      CACHE.stock = d.stock || []; CACHE.barcodes = d.barcodes || []; CACHE.prices = d.prices || {}; CACHE.reorder = d.reorder || {}; CACHE.audit = d.audit || {};
       CACHE.loaded = true;
       cacheLastUpdate = d.lastUpdate || '';
       buildIndex();
@@ -443,6 +448,7 @@
         CACHE.barcodes = d.barcodes || [];
         CACHE.prices = d.prices || {};
         CACHE.reorder = d.reorder || {};
+        CACHE.audit = d.audit || {};
         CACHE.loaded = true;
         buildIndex();                 // สร้าง index ทันที
         saveCacheLocal(d.lastUpdate);  // เก็บลงเครื่อง
@@ -475,7 +481,7 @@
     fetch(API_URL + '?action=allData')
       .then(function(r){ return r.json(); })
       .then(function(d){
-        CACHE.stock = d.stock || []; CACHE.barcodes = d.barcodes || []; CACHE.prices = d.prices || {}; CACHE.reorder = d.reorder || {};
+        CACHE.stock = d.stock || []; CACHE.barcodes = d.barcodes || []; CACHE.prices = d.prices || {}; CACHE.reorder = d.reorder || {}; CACHE.audit = d.audit || {};
         CACHE.loaded = true; buildIndex(); saveCacheLocal(d.lastUpdate);
         if (cb) cb();
       })
@@ -548,6 +554,16 @@
       bcWrap.style.display = 'none';
     }
 
+    // เช็คว่าสินค้านี้เคยตรวจนับแล้วไหม (ตามบาร์โค้ด)
+    var auditInfo = currentProduct ? (CACHE.audit[currentProduct.barcode] || null) : null;
+    var checkedBadge = document.getElementById('rCheckedBadge');
+    if (auditInfo) {
+      checkedBadge.innerHTML = '🟢 ตรวจแล้ว ' + auditInfo.time;
+      checkedBadge.style.display = 'block';
+    } else {
+      checkedBadge.style.display = 'none';
+    }
+
     var today = new Date(), soon = new Date(); soon.setMonth(soon.getMonth() + 3);
     var html = '';
     for (var i = 0; i < lots.length; i++) {
@@ -558,10 +574,23 @@
         else if (ed < soon) { cls = 'warn'; dcls = 'warn'; badge = '<span class="badge badge-amber">ใกล้หมดอายุ</span>'; }
       }
       var ut = (lot.unitText || (lot.qty + ' ' + uName)).split('|');
+      var qtyHtml = ut[0] + (ut[1] ? '<small>' + ut[1] + '</small>' : '');
+
+      // ค่าที่ปรับจากการตรวจนับ (ถ้ามี lot นี้ใน audit และค่าไม่ตรง POS)
+      var adj = '';
+      if (auditInfo && auditInfo.lots[lot.lot]) {
+        var real = auditInfo.lots[lot.lot].realQty;
+        if (real !== '' && real != null && Number(real) !== Number(lot.qty)) {
+          adj = '<div style="font-size:11px; color:#c47d1a; font-weight:600; margin-top:2px;">ปรับเป็น ' + real + ' ' + uName + '</div>';
+        } else if (real !== '' && real != null && Number(real) === Number(lot.qty)) {
+          adj = '<div style="font-size:11px; color:#1d9e75; margin-top:2px;">✓ ตรงกับที่ตรวจ</div>';
+        }
+      }
+
       html += '<div class="lot ' + cls + '" onclick="openEdit(' + i + ')">'
         + '<div><div class="lot-num">' + (lot.lot || '-') + badge + '</div>'
         + '<div class="lot-dates ' + dcls + '">' + (lot.exp ? 'หมดอายุ ' + lot.exp : 'ไม่มีวันหมดอายุ') + '</div></div>'
-        + '<div class="lot-qty">' + ut[0] + (ut[1] ? '<small>' + ut[1] + '</small>' : '') + '</div>'
+        + '<div class="lot-qty">' + qtyHtml + adj + '</div>'
         + '</div>';
     }
     document.getElementById('rLots').innerHTML = html;
@@ -710,6 +739,14 @@
         if (res && res.ok) {
           document.getElementById('afOk').style.display = 'block';
           dashData = null;  // ล้าง cache แดชบอร์ด ให้คำนวณใหม่ครั้งหน้า
+          // อัปเดต audit cache ในเครื่องทันที (ให้ป้าย "ตรวจแล้ว" + ค่าที่ปรับขึ้นเลย)
+          if (currentProduct) {
+            var bc = currentProduct.barcode;
+            if (!CACHE.audit[bc]) CACHE.audit[bc] = { time: 'เมื่อกี้', lots: {} };
+            CACHE.audit[bc].time = 'เมื่อกี้';
+            if (rec.sysLot) CACHE.audit[bc].lots[rec.sysLot] = { realQty: rec.realQty, sysQty: rec.sysQty };
+            saveCacheLocal();
+          }
           setTimeout(closeSheet, 1000);
         } else { alert('บันทึกไม่สำเร็จ: ' + (res ? res.error : '')); }
       })
@@ -896,43 +933,124 @@
     var list = auditData.filter(function(it){
       if (auditFilter === 'fixed') return isFixed(it);
       if (auditFilter === 'matched') return !isFixed(it) && isMatched(it);
-      return !isFixed(it) && !isMatched(it);  // tofix = ยังไม่แก้ + ไม่ตรง
+      return !isFixed(it) && !isMatched(it);
     });
     var box = document.getElementById('sumList');
     if (list.length === 0) { box.innerHTML = ''; document.getElementById('sumEmpty').style.display = 'block'; return; }
     document.getElementById('sumEmpty').style.display = 'none';
-    var html = '';
+
+    // จัดกลุ่มตามสินค้า (บาร์โค้ด+ชื่อ) - แบบ A
+    var groups = {}, order = [];
     for (var i = 0; i < list.length; i++) {
-      var it = list[i], fx = isFixed(it), mt = isMatched(it), diff = '';
-      if (it.diff !== '' && it.diff != null) {
-        var cls = Number(it.diff) >= 0 ? 'diff-pos' : 'diff-neg';
-        var sign = Number(it.diff) > 0 ? '+' : '';
-        diff = '<span class="' + cls + '">' + sign + it.diff + '</span>';
+      var it = list[i];
+      var key = (it.barcode || '') + '|' + (it.name || '');
+      if (!groups[key]) { groups[key] = { name: it.name, barcode: it.barcode, items: [] }; order.push(key); }
+      groups[key].items.push(it);
+    }
+
+    var html = '', bcToDraw = [];
+    for (var g = 0; g < order.length; g++) {
+      var grp = groups[order[g]];
+      var fx = isFixed(grp.items[0]), mt = isMatched(grp.items[0]);
+      // ยอดรวมของสินค้านี้
+      var sumSys = 0, sumReal = 0, hasQty = false;
+      for (var k = 0; k < grp.items.length; k++) {
+        var q = grp.items[k];
+        if (q.realQty !== '' && q.realQty != null) { sumSys += Number(q.sysQty)||0; sumReal += Number(q.realQty)||0; hasQty = true; }
       }
+      var sumDiff = sumReal - sumSys;
+
       html += '<div class="sum-card' + (fx ? ' fixed' : '') + '">';
-      if (fx) html += '<div class="badge-fixed">' + it.status + '</div>';
+      if (fx) html += '<div class="badge-fixed">' + grp.items[0].status + '</div>';
       else if (mt) html += '<div class="badge-fixed">ตรวจแล้ว-ตรง</div>';
-      html += '<div class="sum-name">' + (it.name || '-') + '</div>';
-      if (it.barcode) { html += '<svg class="sum-bc" id="bc_' + it.row + '"></svg><div class="sum-bcnum">' + it.barcode + '</div>'; }
-      html += '<div class="sum-grid">';
-      if (it.realQty !== '' && it.realQty != null) html += 'จำนวน: ระบบ <b>' + it.sysQty + '</b> → นับจริง <b>' + it.realQty + '</b> (ต่าง ' + diff + ')<br>';
-      if (it.realLot) html += 'Lot จริง: <b>' + it.realLot + '</b><br>';
-      if (it.realExp) html += 'วันหมดอายุ: <b>' + it.realExp + '</b><br>';
-      html += '</div><div class="sum-time">ตรวจนับ ' + it.time + '</div>';
-      if (!fx && !mt) html += '<button class="btn-fixed" onclick="markFixed(' + it.row + ')">ติ๊กว่าแก้ที่ POS แล้ว</button>';
+      html += '<div class="sum-name">' + (grp.name || '-') + '</div>';
+
+      // ยอดรวม
+      if (hasQty) {
+        var dcls = sumDiff >= 0 ? 'diff-pos' : 'diff-neg', dsign = sumDiff > 0 ? '+' : '';
+        html += '<div style="font-size:13px; margin:6px 0; padding:8px; background:#f7f9fb; border-radius:8px;">'
+          + 'รวมทั้งหมด: ระบบ <b>' + sumSys + '</b> → นับจริง <b>' + sumReal + '</b> '
+          + '(<span class="' + dcls + '">' + dsign + sumDiff + '</span>)</div>';
+      }
+
+      if (grp.barcode) { html += '<svg class="sum-bc" id="bc_' + g + '"></svg><div class="sum-bcnum">' + grp.barcode + '</div>'; bcToDraw.push({ id: 'bc_' + g, code: grp.barcode }); }
+
+      // แยกทีละ lot
+      html += '<div style="margin-top:8px;">';
+      for (var m = 0; m < grp.items.length; m++) {
+        var it2 = grp.items[m], d2 = '';
+        if (it2.diff !== '' && it2.diff != null) {
+          var c2 = Number(it2.diff) >= 0 ? 'diff-pos' : 'diff-neg', s2 = Number(it2.diff) > 0 ? '+' : '';
+          d2 = ' (<span class="' + c2 + '">' + s2 + it2.diff + '</span>)';
+        }
+        var lotName = it2.realLot || it2.sysLot || '-';
+        html += '<div style="display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-top:0.5px solid #eee; font-size:13px;">';
+        html += '<div>Lot <b>' + lotName + '</b>: ';
+        if (it2.realQty !== '' && it2.realQty != null) html += it2.sysQty + ' → <b>' + it2.realQty + '</b>' + d2;
+        if (it2.realExp) html += ' <span style="color:#888;">(อ.' + it2.realExp + ')</span>';
+        html += '</div>';
+        html += '<button onclick="delAudit(' + it2.row + ')" style="width:30px; height:30px; border:none; background:#f7ecec; color:#c0392b; border-radius:7px; font-size:14px; flex:0 0 auto;">🗑</button>';
+        html += '</div>';
+      }
+      html += '</div>';
+
+      html += '<div class="sum-time">ตรวจนับ ' + grp.items[grp.items.length-1].time + '</div>';
+      if (!fx && !mt) {
+        html += '<button class="btn-fixed" onclick="markFixedGroup(' + g + ')">ติ๊กว่าแก้ที่ POS แล้ว (ทั้งสินค้า)</button>';
+      }
       html += '</div>';
     }
     box.innerHTML = html;
-    for (var j = 0; j < list.length; j++) {
-      if (!list[j].barcode) continue;
-      try { JsBarcode('#bc_' + list[j].row, String(list[j].barcode), { format:'CODE128', width:1.6, height:44, fontSize:12, margin:0 }); } catch(e){}
+    // เก็บ group เรียงตาม index ไว้ให้ markFixedGroup ใช้
+    window._auditGroupList = order.map(function(k){ return groups[k]; });
+    for (var b = 0; b < bcToDraw.length; b++) {
+      try { JsBarcode('#' + bcToDraw[b].id, String(bcToDraw[b].code), { format:'CODE128', width:1.6, height:44, fontSize:12, margin:0 }); } catch(e){}
     }
   }
+
+  // ติ๊กแก้แล้วทั้งสินค้า (ทุก lot ในกลุ่ม)
+  function markFixedGroup(gIdx) {
+    if (!confirm('ยืนยันว่าแก้ที่ POS แล้ว? (ทุก lot ของสินค้านี้)')) return;
+    var grp = (window._auditGroupList || [])[gIdx];
+    if (!grp) return;
+    var rows = grp.items.map(function(it){ return it.row; });
+    markFixedRows(rows, 0);
+  }
+  function markFixedRows(rows, i) {
+    if (i >= rows.length) { dashData = null; loadAudit(); return; }
+    fetch(API_URL + '?action=markFixed&row=' + rows[i])
+      .then(function(r){ return r.json(); })
+      .then(function(){ markFixedRows(rows, i+1); })
+      .catch(function(){ markFixedRows(rows, i+1); });
+  }
+
   function markFixed(row) {
     if (!confirm('ยืนยันว่าแก้ที่ POS แล้ว?')) return;
     fetch(API_URL + '?action=markFixed&row=' + row)
       .then(function(r){ return r.json(); })
       .then(function(res){ if (res && res.ok) { dashData = null; loadAudit(); } else alert('ไม่สำเร็จ'); })
+      .catch(function(err){ alert('ผิดพลาด: ' + err); });
+  }
+
+  // ลบรายการตรวจนับทีละรายการ
+  function delAudit(row) {
+    if (!confirm('ลบรายการตรวจนับนี้?')) return;
+    fetch(API_URL + '?action=deleteAudit&row=' + row)
+      .then(function(r){ return r.json(); })
+      .then(function(res){ if (res && res.ok) { dashData = null; loadAudit(); } else alert('ลบไม่สำเร็จ: ' + (res?res.error:'')); })
+      .catch(function(err){ alert('ผิดพลาด: ' + err); });
+  }
+
+  // รีเซตการตรวจนับทั้งหมด (เก็บประวัติก่อน)
+  function resetAllAudit() {
+    if (!confirm('รีเซตการตรวจนับทั้งหมด?\n\nข้อมูลจะถูกเก็บเป็นประวัติก่อนล้าง แล้วเริ่มรอบใหม่')) return;
+    if (!confirm('ยืนยันอีกครั้ง — ล้างรายการตรวจนับทั้งหมดจริงหรือไม่?')) return;
+    fetch(API_URL + '?action=resetAudit')
+      .then(function(r){ return r.json(); })
+      .then(function(res){
+        if (res && res.ok) { dashData = null; alert('รีเซตเรียบร้อย (เก็บประวัติ ' + (res.moved||0) + ' รายการ)'); loadAudit(); }
+        else alert('ไม่สำเร็จ: ' + (res?res.error:''));
+      })
       .catch(function(err){ alert('ผิดพลาด: ' + err); });
   }
 
