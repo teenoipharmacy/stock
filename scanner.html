@@ -1241,39 +1241,48 @@
     var barH = H * 0.45;
     ctx.fillStyle = '#ffe100';
     ctx.fillRect(0, barTop, W, barH);
-    // ราคา (ชิดซ้าย ตัวใหญ่ + กันล้นไม่ให้ทับหน่วยด้านขวา)
+    // ===== ราคา + หน่วย เป็นก้อนเดียว จัดกึ่งกลางแถบ (วัดความกว้างก่อน = ไม่หลุดขอบ) =====
     var priceTxt = l.price ? '฿' + Math.round(Number(l.price)) : '-';
-    var padX = scale * 0.22;
-    var unitBoxW = scale * 1.35;        // พื้นที่กันไว้ให้หน่วย (เผื่อเยอะ กันหลุดขอบ)
-    var unitX = W - padX;              // จุดชิดขวาของหน่วย (ห่างขอบ padX)
-    var priceLeft = padX;              // ราคาเริ่มจากซ้าย
-    var priceMaxW = W - unitBoxW - padX;  // ราคากว้างได้แค่นี้ (เว้นที่หน่วย)
+    var unitTop = 'บาท';
+    var unitBot = '/ ' + l.unit;
+    var sidePad = scale * 0.25;                 // ขอบซ้าย-ขวาขั้นต่ำ
+    var maxGroupW = W - sidePad * 2;            // ความกว้างที่ก้อนใช้ได้
+    var gap = scale * 0.14;                      // ช่องว่างราคา<->หน่วย
 
+    var priceSize = scale * 1.45;
+    var unitSize = scale * 0.26;
+    var priceW, unitW, groupW;
+
+    // วัดความกว้างรวม แล้วย่อทั้งคู่ลงพร้อมกันจนพอดีแถบ
+    for (var tries = 0; tries < 40; tries++) {
+      ctx.font = '800 ' + priceSize + 'px -apple-system, Sarabun, sans-serif';
+      priceW = ctx.measureText(priceTxt).width;
+      ctx.font = 'bold ' + unitSize + 'px -apple-system, Sarabun, sans-serif';
+      unitW = Math.max(ctx.measureText(unitTop).width, ctx.measureText(unitBot).width);
+      groupW = priceW + gap + unitW;
+      if (groupW <= maxGroupW) break;
+      priceSize -= 2; unitSize -= 0.4;
+      if (priceSize < scale * 0.5) break;
+    }
+
+    // จุดเริ่มของก้อน (ให้ก้อนอยู่กึ่งกลางแถบ)
+    var groupLeft = (W - groupW) / 2;
+    if (groupLeft < sidePad) groupLeft = sidePad;
+    var priceY = barTop + barH * 0.5;
+
+    // วาดราคา (ชิดซ้ายของก้อน)
     ctx.fillStyle = '#111';
     ctx.textAlign = 'left';
-    var priceSize = scale * 1.45;
-    ctx.font = '800 ' + priceSize + 'px -apple-system, Sarabun, sans-serif';
-    while (ctx.measureText(priceTxt).width > priceMaxW && priceSize > scale * 0.6) {
-      priceSize -= 2;
-      ctx.font = '800 ' + priceSize + 'px -apple-system, Sarabun, sans-serif';
-    }
     ctx.textBaseline = 'middle';
-    var priceY = barTop + barH * 0.5;
-    ctx.fillText(priceTxt, priceLeft, priceY);   // ★ ราคาชิดซ้าย
+    ctx.font = '800 ' + priceSize + 'px -apple-system, Sarabun, sans-serif';
+    ctx.fillText(priceTxt, groupLeft, priceY);
 
-    // หน่วย (ชิดขวา + ย่อให้พอดี ไม่ล้นขอบแน่นอน)
-    ctx.textAlign = 'right';
+    // วาดหน่วย 2 บรรทัด (ต่อท้ายราคา ชิดซ้ายของบล็อกหน่วย)
+    var unitLeft = groupLeft + priceW + gap;
     ctx.fillStyle = '#333';
-    var unitSize = scale * 0.25;
     ctx.font = 'bold ' + unitSize + 'px -apple-system, Sarabun, sans-serif';
-    var unitLine2 = '/ ' + l.unit;
-    var unitAvail = unitBoxW - scale * 0.05;
-    while ((ctx.measureText(unitLine2).width > unitAvail || ctx.measureText('บาท').width > unitAvail) && unitSize > scale * 0.14) {
-      unitSize -= 1;
-      ctx.font = 'bold ' + unitSize + 'px -apple-system, Sarabun, sans-serif';
-    }
-    ctx.fillText('บาท', unitX, priceY - scale * 0.16);
-    ctx.fillText(unitLine2, unitX, priceY + scale * 0.16);
+    ctx.fillText(unitTop, unitLeft, priceY - scale * 0.17);
+    ctx.fillText(unitBot, unitLeft, priceY + scale * 0.17);
     ctx.textBaseline = 'alphabetic';
 
     // ===== ชั้นล่าง: บาร์โค้ดเต็มความกว้าง =====
