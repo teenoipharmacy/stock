@@ -1216,9 +1216,9 @@
     ctx.fillRect(0, barTop, W, barH);
     // ราคา (ชิดซ้าย ตัวใหญ่ + กันล้นไม่ให้ทับหน่วยด้านขวา)
     var priceTxt = l.price ? '฿' + Math.round(Number(l.price)) : '-';
-    var padX = scale * 0.18;
-    var unitX = W - padX;              // หน่วยชิดขวา
-    var unitBoxW = scale * 1.05;        // พื้นที่กันไว้ให้หน่วย
+    var padX = scale * 0.2;
+    var unitX = W - padX;              // หน่วยชิดขวา (ขอบใน)
+    var unitBoxW = scale * 1.15;        // พื้นที่กันไว้ให้หน่วย
     var priceLeft = padX;              // ราคาเริ่มจากซ้าย
     var priceMaxW = W - unitBoxW - padX * 2;  // ราคากว้างได้แค่นี้ (เว้นที่หน่วย)
 
@@ -1234,11 +1234,18 @@
     var priceY = barTop + barH * 0.5;
     ctx.fillText(priceTxt, priceLeft, priceY);   // ★ ราคาชิดซ้าย
 
-    // หน่วย (ชิดขวา คนละฝั่งกับราคา ไม่ทับ)
+    // หน่วย (ชิดขวา คนละฝั่งกับราคา + ย่อให้พอดีไม่ล้นขอบ)
     ctx.textAlign = 'right';
-    ctx.font = 'bold ' + (scale * 0.26) + 'px -apple-system, Sarabun, sans-serif';
+    ctx.fillStyle = '#333';
+    var unitSize = scale * 0.26;
+    ctx.font = 'bold ' + unitSize + 'px -apple-system, Sarabun, sans-serif';
+    var unitLine2 = '/ ' + l.unit;
+    while (ctx.measureText(unitLine2).width > unitBoxW - scale * 0.1 && unitSize > scale * 0.16) {
+      unitSize -= 1;
+      ctx.font = 'bold ' + unitSize + 'px -apple-system, Sarabun, sans-serif';
+    }
     ctx.fillText('บาท', unitX, priceY - scale * 0.16);
-    ctx.fillText('/ ' + l.unit, unitX, priceY + scale * 0.16);
+    ctx.fillText(unitLine2, unitX, priceY + scale * 0.16);
     ctx.textBaseline = 'alphabetic';
 
     // ===== ชั้นล่าง: บาร์โค้ดเต็มความกว้าง =====
