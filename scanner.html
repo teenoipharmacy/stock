@@ -67,8 +67,10 @@
   .badge-red { background: #faece7; color: #993c1d; }
 
   .btn-add {
-    width: 100%; height: 44px; border: 1px dashed #bbb; border-radius: 10px;
+    width: 100%; min-height: 44px; height: auto; border: 1px dashed #bbb; border-radius: 10px;
     background: #fafafa; color: #666; font-size: 14px; margin-top: 4px;
+    padding: 10px 12px; line-height: 1.3; white-space: nowrap;
+    display: inline-flex; align-items: center; justify-content: center;
   }
 
   /* ฟอร์มแก้ไข (เต็มจอ) */
@@ -120,7 +122,7 @@
 
   /* หน้าสรุป */
   .sum-tabs { display: flex; gap: 6px; margin-bottom: 10px; }
-  .sum-tab { flex: 1; height: 38px; border: 1px solid #ddd; border-radius: 8px; background: #fff; color: #777; font-size: 13px; font-weight: 600; }
+  .sum-tab { flex: 1; min-height: 38px; height: auto; padding: 6px 4px; border: 1px solid #ddd; border-radius: 8px; background: #fff; color: #777; font-size: 13px; font-weight: 600; line-height: 1.2; }
   .sum-tab.active { background: #0f6e56; color: #fff; border-color: #0f6e56; }
   .sum-card { background: #fff; border-radius: 12px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
   .sum-card.fixed { opacity: 0.55; }
@@ -310,8 +312,8 @@
       <button class="sum-tab" id="stDone" onclick="filterAudit('fixed')">แก้แล้ว</button>
     </div>
     <div style="display:flex; gap:8px; margin-bottom:10px;">
-      <button class="btn-add" onclick="loadAudit()" style="flex:1; margin:0;">โหลดรายการใหม่</button>
-      <button class="btn-add" onclick="resetAllAudit()" style="flex:0 0 auto; margin:0; color:#c0392b; border-color:#e0a0a0; padding:0 16px;">รีเซตทั้งหมด</button>
+      <button class="btn-add" onclick="loadAudit()" style="flex:1; margin:0;">โหลดใหม่</button>
+      <button class="btn-add" onclick="resetAllAudit()" style="flex:1; margin:0; color:#c0392b; border-color:#e0a0a0;">รีเซตทั้งหมด</button>
     </div>
     <div class="loading" id="sumLoading" style="display:none;">กำลังโหลด...</div>
     <div class="empty" id="sumEmpty" style="display:none;">ยังไม่มีรายการตรวจนับ</div>
@@ -558,7 +560,7 @@
     var auditInfo = currentProduct ? (CACHE.audit[currentProduct.barcode] || null) : null;
     var checkedBadge = document.getElementById('rCheckedBadge');
     if (auditInfo) {
-      checkedBadge.innerHTML = '🟢 ตรวจแล้ว ' + auditInfo.time;
+      checkedBadge.innerHTML = '🟢 ตรวจแล้ว ' + niceDateTime(auditInfo.time);
       checkedBadge.style.display = 'block';
     } else {
       checkedBadge.style.display = 'none';
@@ -666,6 +668,31 @@
     if (!v) return '';
     var p = v.split('-'); if (p.length !== 3) return v;
     return p[2] + '/' + p[1] + '/' + p[0];
+  }
+
+  // แปลงวันที่ให้อ่านง่าย: รับได้ทั้ง ISO (2030-12-02T17:00:00.000Z), yyyy-mm-dd, dd/mm/yyyy
+  function niceDate(v) {
+    if (!v) return '';
+    v = String(v).trim();
+    // ISO เต็ม -> เอาแค่วันที่
+    if (v.indexOf('T') >= 0) v = v.split('T')[0];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+      var p = v.split('-');
+      return p[2] + '/' + p[1] + '/' + p[0];   // dd/mm/yyyy
+    }
+    return v;  // เป็น dd/mm/yyyy อยู่แล้ว
+  }
+  // แปลงวันเวลาให้อ่านง่าย (ตัดวินาที/มิลลิ)
+  function niceDateTime(v) {
+    if (!v) return '';
+    v = String(v).trim();
+    if (v.indexOf('T') >= 0) {
+      var parts = v.split('T');
+      var d = niceDate(parts[0]);
+      var t = (parts[1] || '').slice(0, 5);  // HH:MM
+      return d + (t ? ' ' + t : '');
+    }
+    return v;
   }
 
   function openEdit(idx) {
@@ -987,14 +1014,14 @@
         html += '<div style="display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-top:0.5px solid #eee; font-size:13px;">';
         html += '<div>Lot <b>' + lotName + '</b>: ';
         if (it2.realQty !== '' && it2.realQty != null) html += it2.sysQty + ' → <b>' + it2.realQty + '</b>' + d2;
-        if (it2.realExp) html += ' <span style="color:#888;">(อ.' + it2.realExp + ')</span>';
+        if (it2.realExp) html += ' <span style="color:#888;">(อ.' + niceDate(it2.realExp) + ')</span>';
         html += '</div>';
         html += '<button onclick="delAudit(' + it2.row + ')" style="width:30px; height:30px; border:none; background:#f7ecec; color:#c0392b; border-radius:7px; font-size:14px; flex:0 0 auto;">🗑</button>';
         html += '</div>';
       }
       html += '</div>';
 
-      html += '<div class="sum-time">ตรวจนับ ' + grp.items[grp.items.length-1].time + '</div>';
+      html += '<div class="sum-time">ตรวจนับ ' + niceDateTime(grp.items[grp.items.length-1].time) + '</div>';
       if (!fx && !mt) {
         html += '<button class="btn-fixed" onclick="markFixedGroup(' + g + ')">ติ๊กว่าแก้ที่ POS แล้ว (ทั้งสินค้า)</button>';
       }
@@ -1358,7 +1385,7 @@
         html += '<div style="font-size:12px; color:#888; margin-top:3px;">' + it.code + ' • เหลือ <span style="color:#c0392b; font-weight:700;">' + it.stock + ' ' + it.unit + '</span> (เตือนที่ ' + it.threshold + ')</div>';
         html += '<div style="font-size:14px; color:#0f6e56; font-weight:700; margin-top:4px;">ควรสั่ง ' + it.orderQty + ' ' + it.unit + '</div>';
       } else {
-        html += '<div style="font-size:12px; color:#2565a8; margin-top:3px;">' + it.code + ' • สั่งเมื่อ ' + it.orderedAt + '</div>';
+        html += '<div style="font-size:12px; color:#2565a8; margin-top:3px;">' + it.code + ' • สั่งเมื่อ ' + niceDateTime(it.orderedAt) + '</div>';
         html += '<div style="font-size:12px; color:#888; margin-top:2px;">เหลือ ' + it.stock + ' ' + it.unit + '</div>';
       }
       html += '</div>';
